@@ -1,0 +1,44 @@
+{
+  "name": "@org/agent-runtime",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "private": true,
+  "nx": {
+    "targets": {
+      "dev": {
+        "continuous": true,
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "wrangler dev",
+          "cwd": "apps/agent-runtime"
+        }
+      },
+      "deploy": {
+        "executor": "nx:run-commands",
+        "dependsOn": ["typecheck"],
+        "options": {
+          "command": "wrangler deploy",
+          "cwd": "apps/agent-runtime"
+        }
+      },
+      "cf-typegen": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "wrangler types",
+          "cwd": "apps/agent-runtime"
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.116.0",
+    "agents": "^0.20.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260812.1",
+    "wrangler": "^4.122.0"
+  }
+}

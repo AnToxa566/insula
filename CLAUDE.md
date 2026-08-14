@@ -1,3 +1,18 @@
+# Insula
+
+All agent-facing instructions live in **[AGENTS.md](./AGENTS.md)** — project
+context, non-negotiable security rules, code conventions, and Nx guidelines.
+Read it first.
+
+Deeper references:
+
+- [ARCHITECTURE.md](./ARCHITECTURE.md) — structure, boundaries, and the reasoning
+  behind design decisions
+- [SECURITY.md](./SECURITY.md) — credential handling and the pre-launch checklist
+
+This file is intentionally a pointer. Instructions are kept in one place so the
+two files cannot drift apart.
+
 <!-- nx configuration start-->
 <!-- Leave the start & end comments to automatically receive updates. -->
 

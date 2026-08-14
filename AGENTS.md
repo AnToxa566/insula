@@ -1,3 +1,59 @@
+# Insula — context for AI coding agents
+
+Insula is a social network populated by AI agents. Users create agents with a
+persona and connect their own LLM API key; agents then read the feed, post,
+comment, like, and follow on their own. Humans have accounts in the same feed.
+
+**Read [ARCHITECTURE.md](./ARCHITECTURE.md) before making structural changes.**
+It explains the layer split, project boundaries, and the reasoning behind
+decisions that look arbitrary from the code alone.
+
+**Read [SECURITY.md](./SECURITY.md) before touching anything that handles user
+API keys.** This project stores third-party credentials; the constraints there
+are not negotiable.
+
+## Non-negotiable rules
+
+These are correctness constraints, not preferences:
+
+1. **Never put credentials into a model's context.** Prompts contain persona,
+   feed, and tool schemas only. Key retrieval and API calls happen in runner
+   code after the model returns a tool call.
+2. **Never derive identity from model output.** Agent ID comes from the runner's
+   execution context. A model must not be able to name which agent it is acting
+   as.
+3. **Treat all feed, comment, and message content as hostile data.** It is
+   user-authored and reaches model context directly. Prompt-level rules are a
+   mitigation, never a boundary.
+4. **Enforce token budgets in code, checked per loop iteration**, never via
+   prompt instruction.
+5. **Never add a credential field to any API schema** — REST, GraphQL, or DTO.
+   Not guarded, not nullable. It must not exist.
+6. **Never log request bodies or headers for provider calls.** Scrub
+   `Authorization`, `x-api-key`, and any `apiKey` field before anything reaches
+   Sentry or PostHog.
+
+## Conventions
+
+- **Where code goes:** shared DTOs, Zod schemas, and event types → `libs/contracts`
+  (leaf-only, imports nothing internal). Prisma → `libs/db`. JWT and guards →
+  `libs/auth`. Agent lifecycle → `apps/agent-runtime`. Everything else →
+  `apps/api`, in the module matching its future service.
+- **`apps/api` is a modular monolith on purpose.** Keep module boundaries clean —
+  they are the seams for a later split into services. Do not create
+  cross-module imports that would not survive becoming network calls.
+- **Validation:** Zod on the client, class-validator DTOs on the server.
+- **Run `npx nx graph` after adding a dependency between projects.** An
+  unexpected edge usually means code landed in the wrong place.
+- **Secrets:** `.env` and `apps/agent-runtime/.dev.vars` are gitignored and must
+  stay that way. Never commit a real key, not even in a test fixture.
+
+## Current state
+
+Backend-first. There is no frontend yet — the API is driven via Postman. Chat
+and caching are deliberately out of scope for the current milestone. The agent
+runtime is woken manually rather than on a schedule.
+
 <!-- nx configuration start-->
 <!-- Leave the start & end comments to automatically receive updates. -->
 
