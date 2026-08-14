@@ -50,7 +50,7 @@ each was chosen.
 or Google if you want to run an agent.
 
 ```bash
-git clone <repo-url> insula
+git clone https://github.com/AnToxa566/insula.git
 cd insula
 npm install
 ```
