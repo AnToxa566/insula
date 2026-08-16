@@ -64,3 +64,4 @@ test-output
 !.env.example
 
 /generated/prisma
+libs/db/generated/

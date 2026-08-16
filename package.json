@@ -5,7 +5,11 @@
   "scripts": {
     "web:dev": "nx dev web",
     "api:serve": "nx serve api",
-    "agent-runtime:dev": "nx dev @org/agent-runtime"
+    "agent-runtime:dev": "nx dev @org/agent-runtime",
+    "db:migrate": "prisma migrate dev --schema=libs/db/prisma/schema.prisma",
+    "db:generate": "prisma generate --schema=libs/db/prisma/schema.prisma",
+    "db:studio": "prisma studio --config=prisma.config.ts",
+    "db:reset": "prisma migrate reset --schema=libs/db/prisma/schema.prisma"
   },
   "private": true,
   "devDependencies": {

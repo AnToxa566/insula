@@ -1,8 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -10,4 +8,253 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum ProfileType {
+  USER
+  AGENT
+}
+
+enum LlmProvider {
+  ANTHROPIC
+  OPENAI
+  GOOGLE
+}
+
+// Describes user intent only — whether the agent has been launched, is
+// running, or is paused. It deliberately carries no technical-health states:
+// credential problems are recorded on AgentCredential, and budget exhaustion
+// is derived from TokenUsage at read time. Mixing the two would lose the
+// user's intent — after a broken key is replaced there would be no way to
+// know which state to restore.
+enum AgentStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+}
+
+// ---------------------------------------------------------------------------
+// Social identity
+// ---------------------------------------------------------------------------
+
+// The shared social identity. Everything social points here — posts,
+// comments, likes, follows — regardless of whether the profile belongs to a
+// human or an agent.
+model Profile {
+  id          String      @id @default(uuid())
+  type        ProfileType
+  handle      String      @unique
+  displayName String      @map("display_name")
+  bio         String?
+  avatarSeed  String      @map("avatar_seed")
+  avatarUrl   String?     @map("avatar_url")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  user  User?
+  agent Agent?
+
+  posts        Post[]
+  comments     Comment[]
+  postLikes    PostLike[]
+  commentLikes CommentLike[]
+
+  following Follow[] @relation("Following")
+  followers Follow[] @relation("Followers")
+
+  @@index([type])
+  @@map("profiles")
+}
+
+// ---------------------------------------------------------------------------
+// Users and agents
+// ---------------------------------------------------------------------------
+
+// Authentication only. Exists solely for profiles of type USER.
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  profileId    String   @unique @map("profile_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  profile       Profile        @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  agents        Agent[]
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+// Configuration for an autonomous profile.
+model Agent {
+  id              String      @id @default(uuid())
+  profileId       String      @unique @map("profile_id")
+  ownerId         String      @map("owner_id")
+  provider        LlmProvider
+  model           String
+  dailyTokenLimit Int         @default(50000) @map("daily_token_limit")
+  status          AgentStatus @default(DRAFT)
+  interests       Json
+  activeHours     Json        @map("active_hours")
+  timezone        String      @default("UTC")
+  lastWokeAt      DateTime?   @map("last_woke_at")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  profile    Profile          @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  owner      User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  credential AgentCredential?
+  tokenUsage TokenUsage[]
+
+  @@index([ownerId])
+  @@index([status])
+  @@map("agents")
+}
+
+// Security-critical: the user's encrypted LLM API key. This is a separate
+// table specifically so that an accidental `include: { agent: true }` cannot
+// leak it into an API response. No field except `last4`, `lastValidatedAt`,
+// `lastValidationError`, and timestamps may ever appear in an API response.
+model AgentCredential {
+  id                  String    @id @default(uuid())
+  agentId             String    @unique @map("agent_id")
+  ciphertext          Bytes
+  iv                  Bytes
+  authTag             Bytes     @map("auth_tag")
+  encryptedDek        Bytes     @map("encrypted_dek")
+  kekVersion          String    @default("v0-local") @map("kek_version")
+  last4               String
+  lastValidatedAt     DateTime? @map("last_validated_at")
+  lastValidationError String?   @map("last_validation_error")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@map("agent_credentials")
+}
+
+// Daily spend per agent. Read before every model call and compared against
+// Agent.dailyTokenLimit — this is an enforcement mechanism, not analytics.
+model TokenUsage {
+  id           String   @id @default(uuid())
+  agentId      String   @map("agent_id")
+  day          DateTime @db.Date
+  inputTokens  Int      @default(0) @map("input_tokens")
+  outputTokens Int      @default(0) @map("output_tokens")
+  callCount    Int      @default(0) @map("call_count")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, day])
+  @@map("token_usage")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  userAgent String?   @map("user_agent")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ---------------------------------------------------------------------------
+// Content
+// ---------------------------------------------------------------------------
+
+model Post {
+  id        String   @id @default(uuid())
+  authorId  String   @map("author_id")
+  body      String   @db.Text
+  mediaUrls String[] @map("media_urls")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  author   Profile    @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments Comment[]
+  likes    PostLike[]
+
+  @@index([authorId, createdAt])
+  @@map("posts")
+}
+
+// Supports threading via a self-relation.
+model Comment {
+  id        String   @id @default(uuid())
+  postId    String   @map("post_id")
+  authorId  String   @map("author_id")
+  parentId  String?  @map("parent_id")
+  body      String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  post    Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author  Profile       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent  Comment?      @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[]     @relation("CommentReplies")
+  likes   CommentLike[]
+
+  @@index([postId, createdAt])
+  @@index([parentId])
+  @@map("comments")
+}
+
+// Two separate models on purpose — see PostLike/CommentLike split rationale
+// in ARCHITECTURE.md. These rows are never updated, so no updatedAt.
+model PostLike {
+  id        String   @id @default(uuid())
+  profileId String   @map("profile_id")
+  postId    String   @map("post_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  post    Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, postId])
+  @@index([postId])
+  @@map("post_likes")
+}
+
+model CommentLike {
+  id        String   @id @default(uuid())
+  profileId String   @map("profile_id")
+  commentId String   @map("comment_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, commentId])
+  @@index([commentId])
+  @@map("comment_likes")
+}
+
+// Composite primary key, no surrogate id. Never updated — a change means
+// deleting the row and creating a new one.
+model Follow {
+  followerId String   @map("follower_id")
+  followeeId String   @map("followee_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  follower Profile @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
+  followee Profile @relation("Followers", fields: [followeeId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followeeId])
+  @@index([followeeId])
+  @@map("follows")
 }

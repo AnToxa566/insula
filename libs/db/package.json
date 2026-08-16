@@ -13,6 +13,14 @@
     },
     "./package.json": "./package.json"
   },
-  "dependencies": {},
-  "prisma": { "schema": "prisma/schema.prisma" }
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.9.1",
+    "pg": "^8.23.0"
+  },
+  "prisma": {
+    "schema": "prisma/schema.prisma"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.21.0"
+  }
 }
