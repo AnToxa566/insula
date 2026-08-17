@@ -2,8 +2,13 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider     = "prisma-client"
+  output       = "../generated/prisma"
+  // apps/api is CommonJS (no "type": "module") and bundles this client via
+  // webpack/tsc. Prisma 7's generated client is ESM by default, which
+  // produces a module wrapper mismatch when bundled into a CJS app —
+  // moduleFormat = "cjs" is Prisma's documented fix for exactly this case.
+  moduleFormat = "cjs"
 }
 
 datasource db {

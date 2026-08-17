@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { waitForPortOpen } from '@nx/node/utils';
 
 /* eslint-disable */
@@ -7,8 +8,15 @@ module.exports = async function () {
   // Start services that that the app needs to run (e.g. database, docker-compose, etc.).
   console.log('\nSetting up...\n');
 
+  // Loads the same .env the api process itself reads (via ConfigModule), so
+  // this waits on the port the app will actually bind to. PORT still wins
+  // if explicitly set, for CI setups that override it.
   const host = process.env.HOST ?? 'localhost';
-  const port = process.env.PORT ? Number(process.env.PORT) : 3000;
+  const port = process.env.PORT
+    ? Number(process.env.PORT)
+    : process.env.API_PORT
+      ? Number(process.env.API_PORT)
+      : 3000;
   await waitForPortOpen(port, { host });
 
   // Hint: Use `globalThis` to pass variables to global teardown.

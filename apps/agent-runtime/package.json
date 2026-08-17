@@ -1,5 +1,5 @@
 {
-  "name": "@org/agent-runtime",
+  "name": "@insula/agent-runtime",
   "version": "1.0.0",
   "description": "",
   "license": "ISC",
@@ -31,7 +31,8 @@
           "cwd": "apps/agent-runtime"
         }
       }
-    }
+    },
+    "tags": ["scope:agent", "type:app"]
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.116.0",

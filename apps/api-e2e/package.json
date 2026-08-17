@@ -1,11 +1,12 @@
 {
-  "name": "@org/api-e2e",
+  "name": "@insula/api-e2e",
   "version": "0.0.1",
   "private": true,
   "nx": {
     "implicitDependencies": [
-      "@org/api"
+      "@insula/api"
     ],
+    "tags": ["scope:api", "type:app"],
     "targets": {
       "e2e": {
         "executor": "@nx/jest:jest",
@@ -13,8 +14,8 @@
           "{projectRoot}/test-output/jest/coverage"
         ],
         "dependsOn": [
-          "@org/api:build",
-          "@org/api:serve"
+          "@insula/api:build",
+          "@insula/api:serve"
         ],
         "options": {
           "jestConfig": "apps/api-e2e/jest.config.cts",

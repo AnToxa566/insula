@@ -1,5 +1,5 @@
 {
-  "name": "@org/api",
+  "name": "@insula/api",
   "version": "0.0.1",
   "private": true,
   "nx": {
@@ -63,15 +63,15 @@
           "build"
         ],
         "options": {
-          "buildTarget": "@org/api:build",
+          "buildTarget": "@insula/api:build",
           "runBuildTargetDependencies": false
         },
         "configurations": {
           "development": {
-            "buildTarget": "@org/api:build:development"
+            "buildTarget": "@insula/api:build:development"
           },
           "production": {
-            "buildTarget": "@org/api:build:production"
+            "buildTarget": "@insula/api:build:production"
           }
         }
       },
@@ -80,17 +80,30 @@
           "passWithNoTests": true
         }
       }
-    }
+    },
+    "tags": ["scope:api", "type:app"]
   },
   "dependencies": {
+    "@insula/auth": "*",
+    "@insula/contracts": "*",
+    "@insula/db": "*",
     "@nestjs/common": "^11.0.0",
+    "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.0",
+    "@nestjs/jwt": "^11.0.2",
     "@nestjs/platform-express": "^11.0.0",
+    "@nestjs/swagger": "^11.4.6",
+    "@prisma/client": "^7.9.1",
+    "bcrypt": "^6.0.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.0",
-    "tslib": "^2.3.0"
+    "tslib": "^2.3.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@nestjs/testing": "^11.0.0"
+    "@nestjs/testing": "^11.0.0",
+    "@types/bcrypt": "^6.0.0"
   }
 }

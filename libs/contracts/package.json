@@ -13,5 +13,10 @@
     },
     "./package.json": "./package.json"
   },
-  "dependencies": {}
+  "nx": {
+    "tags": ["scope:shared", "type:contract"]
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  }
 }

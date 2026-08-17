@@ -16,9 +16,24 @@ export default [
           enforceBuildableLibDependency: true,
           allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
           depConstraints: [
+            // Leaf-only: libs/contracts imports nothing internal.
+            { sourceTag: 'type:contract', onlyDependOnLibsWithTags: [] },
+            // libs/auth, libs/db: may depend only on contracts. This is
+            // what makes libs/auth importing Prisma or apps/* a lint error,
+            // not just a documented promise.
+            { sourceTag: 'type:util', onlyDependOnLibsWithTags: ['type:contract'] },
+            { sourceTag: 'type:data', onlyDependOnLibsWithTags: ['type:contract'] },
+            { sourceTag: 'type:ui', onlyDependOnLibsWithTags: ['type:contract'] },
             {
-              sourceTag: '*',
-              onlyDependOnLibsWithTags: ['*'],
+              sourceTag: 'type:app',
+              onlyDependOnLibsWithTags: ['type:contract', 'type:util', 'type:data', 'type:ui'],
+            },
+            // Each future service only reaches its own scope plus shared libs.
+            { sourceTag: 'scope:web', onlyDependOnLibsWithTags: ['scope:web', 'scope:shared'] },
+            { sourceTag: 'scope:api', onlyDependOnLibsWithTags: ['scope:api', 'scope:shared'] },
+            {
+              sourceTag: 'scope:agent',
+              onlyDependOnLibsWithTags: ['scope:agent', 'scope:shared'],
             },
           ],
         },

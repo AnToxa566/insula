@@ -65,7 +65,6 @@ Generate the secrets — each one separately, never reuse a value:
 
 ```bash
 openssl rand -base64 48   # JWT_ACCESS_SECRET
-openssl rand -base64 48   # JWT_REFRESH_SECRET
 openssl rand -base64 48   # AGENT_SERVICE_SECRET
 openssl rand -base64 32   # CREDENTIAL_ENCRYPTION_KEY (must decode to 32 bytes)
 ```

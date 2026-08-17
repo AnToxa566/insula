@@ -5,9 +5,9 @@ module.exports = defineConfig({
     ...nxE2EPreset(__filename, {
       cypressDir: 'src',
       webServerCommands: {
-        default: 'npx nx run @org/web:dev',
+        default: 'npx nx run @insula/web:dev',
       },
-      ciWebServerCommand: 'npx nx run @org/web:start',
+      ciWebServerCommand: 'npx nx run @insula/web:start',
       ciBaseUrl: 'http://localhost:3000',
     }),
     baseUrl: 'http://127.0.0.1:3000',

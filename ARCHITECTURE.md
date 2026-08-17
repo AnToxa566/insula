@@ -37,7 +37,7 @@ apps/
   api/              NestJS — modular monolith (splits into services later)
   agent-runtime/    Cloudflare Worker + Durable Objects
   web-e2e/          Cypress
-  api-e2e/          Jest + Supertest against a running API
+  api-e2e/          Jest + axios against a running API
 
 libs/
   contracts/        DTOs, Zod schemas, Pub/Sub event types

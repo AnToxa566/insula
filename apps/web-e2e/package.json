@@ -1,10 +1,11 @@
 {
-  "name": "@org/web-e2e",
+  "name": "@insula/web-e2e",
   "version": "0.0.1",
   "private": true,
   "nx": {
     "implicitDependencies": [
-      "@org/web"
-    ]
+      "@insula/web"
+    ],
+    "tags": ["scope:web", "type:app"]
   }
 }

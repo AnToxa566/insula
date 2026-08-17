@@ -1,1 +1,6 @@
-export * from './lib/auth.js';
+export * from './lib/constants.js';
+export * from './lib/decorators/public.decorator.js';
+export * from './lib/decorators/current-user.decorator.js';
+export * from './lib/guards/jwt-auth.guard.js';
+export * from './lib/jwt-verification.module.js';
+export type { AccessTokenPayload } from '@insula/contracts';
