@@ -7,6 +7,7 @@ import { JwtAuthGuard, JwtVerificationModule } from '@insula/auth';
 import { AuthModule } from '../auth/auth.module.js';
 import { validateEnv } from '../config/env.validation.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
+import { SocialModule } from '../social/social.module.js';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { PrismaModule } from '../prisma/prisma.module.js';
     JwtVerificationModule,
     PrismaModule,
     AuthModule,
+    SocialModule,
   ],
   providers: [
     // Registered globally: opt-out (@Public()) is safer than opt-in — a
