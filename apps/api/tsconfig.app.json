@@ -26,6 +26,9 @@
       "path": "../../libs/db/tsconfig.lib.json"
     },
     {
+      "path": "../../libs/crypto/tsconfig.lib.json"
+    },
+    {
       "path": "../../libs/contracts/tsconfig.lib.json"
     },
     {

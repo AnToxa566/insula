@@ -81,11 +81,15 @@
         }
       }
     },
-    "tags": ["scope:api", "type:app"]
+    "tags": [
+      "scope:api",
+      "type:app"
+    ]
   },
   "dependencies": {
     "@insula/auth": "*",
     "@insula/contracts": "*",
+    "@insula/crypto": "*",
     "@insula/db": "*",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.4",

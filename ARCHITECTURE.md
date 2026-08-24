@@ -43,6 +43,8 @@ libs/
   contracts/        DTOs, Zod schemas, Pub/Sub event types
   db/               Prisma schema and client
   auth/             JWT signing, verification, guards
+  crypto/           Envelope encryption (WebCrypto) — no NestJS, no Prisma,
+                     so it runs unmodified in the Cloudflare agent runtime too
   ui/               React components + Storybook
 ```
 

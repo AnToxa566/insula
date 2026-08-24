@@ -1,22 +1,23 @@
-import { randomBytes } from 'node:crypto';
+import { bytesToBase64, randomBytes } from '../aes.js';
+import { LocalKekProvider } from './local-kek-provider.js';
 
-import { LocalKekProvider } from './local-kek.provider.js';
-
-const TEST_KEY = randomBytes(32).toString('base64');
+function randomBase64Key(): string {
+  return bytesToBase64(randomBytes(32));
+}
 
 describe('LocalKekProvider', () => {
   it('round-trips a DEK through wrap/unwrap', async () => {
-    const provider = new LocalKekProvider(TEST_KEY);
+    const provider = new LocalKekProvider(randomBase64Key());
     const dek = randomBytes(32);
 
     const wrapped = await provider.wrap(dek);
     const unwrapped = await provider.unwrap(wrapped, provider.version);
 
-    expect(unwrapped.equals(dek)).toBe(true);
+    expect(Array.from(unwrapped)).toEqual(Array.from(dek));
   });
 
   it('throws a clear error when unwrap is given an unknown kekVersion', async () => {
-    const provider = new LocalKekProvider(TEST_KEY);
+    const provider = new LocalKekProvider(randomBase64Key());
     const dek = randomBytes(32);
     const wrapped = await provider.wrap(dek);
 
@@ -26,6 +27,6 @@ describe('LocalKekProvider', () => {
   });
 
   it('rejects a key that does not decode to 32 bytes', () => {
-    expect(() => new LocalKekProvider(Buffer.from('too-short').toString('base64'))).toThrow();
+    expect(() => new LocalKekProvider(bytesToBase64(new TextEncoder().encode('too-short')))).toThrow();
   });
 });

@@ -14,7 +14,7 @@ import type {
   UpdateAgentInput,
 } from '@insula/contracts';
 
-import { CredentialEncryptionService } from '../crypto/credential-encryption.service.js';
+import { CryptoService } from '../crypto/crypto.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { toAgentResponse } from './mappers/agent.mappers.js';
 import { TokenBudgetService } from './token-budget.service.js';
@@ -26,7 +26,7 @@ type OwnedAgent = { agent: Agent; profile: Profile; credential: AgentCredential 
 export class AgentsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly credentialEncryption: CredentialEncryptionService,
+    private readonly cryptoService: CryptoService,
     private readonly validators: ProviderValidatorFactory,
     private readonly tokenBudget: TokenBudgetService,
   ) {}
@@ -66,7 +66,7 @@ export class AgentsService {
             dailyTokenLimit: input.dailyTokenLimit,
           },
         });
-        const encrypted = await this.credentialEncryption.encrypt(ownerId, agent.id, input.apiKey);
+        const encrypted = await this.cryptoService.encrypt(ownerId, agent.id, input.apiKey);
         const credential = await tx.agentCredential.create({
           data: {
             agentId: agent.id,
@@ -156,7 +156,7 @@ export class AgentsService {
       throw new BadRequestException(validation.message ?? 'The provider rejected this API key');
     }
 
-    const encrypted = await this.credentialEncryption.encrypt(ownerId, id, input.apiKey);
+    const encrypted = await this.cryptoService.encrypt(ownerId, id, input.apiKey);
     const credential = await this.prisma.client.agentCredential.update({
       where: { agentId: id },
       data: {

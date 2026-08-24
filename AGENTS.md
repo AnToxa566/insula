@@ -37,8 +37,10 @@ These are correctness constraints, not preferences:
 
 - **Where code goes:** shared DTOs, Zod schemas, and event types → `libs/contracts`
   (leaf-only, imports nothing internal). Prisma → `libs/db`. JWT and guards →
-  `libs/auth`. Agent lifecycle → `apps/agent-runtime`. Everything else →
-  `apps/api`, in the module matching its future service.
+  `libs/auth`. Envelope encryption (WebCrypto, no NestJS, no Prisma — must run
+  in both Node and a Workers isolate) → `libs/crypto`. Agent lifecycle →
+  `apps/agent-runtime`. Everything else → `apps/api`, in the module matching
+  its future service.
 - **`apps/api` is a modular monolith on purpose.** Keep module boundaries clean —
   they are the seams for a later split into services. Do not create
   cross-module imports that would not survive becoming network calls.

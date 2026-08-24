@@ -49,14 +49,22 @@ the agent's own storage.
 - No credential field exists in any DTO, REST response, or GraphQL type
 - Encryption is full envelope encryption: a random per-credential DEK
   encrypts the key with AES-256-GCM, AAD binds the ciphertext to
-  `(userId, agentId)`, and the DEK is wrapped by a `KekProvider`
-  (`apps/api/src/crypto`) selected by `KEK_PROVIDER`
+  `(userId, agentId)`, and the DEK is wrapped by a `KekProvider`. The
+  encryption itself (`sealCredential`/`openCredential`, `KekProvider`,
+  `LocalKekProvider`) lives in `@insula/crypto` — pure WebCrypto, no
+  NestJS, no environment reads — so the same code can run on both the API
+  (Node) and the future agent runtime (a Workers isolate). `apps/api/src/crypto`
+  is now a thin Nest wrapper: it selects the active `KekProvider` from
+  `KEK_PROVIDER`/`CREDENTIAL_ENCRYPTION_KEY` and delegates to the library
 - The active KEK provider is **local** (`LocalKekProvider`, AES-256-GCM from
   `CREDENTIAL_ENCRYPTION_KEY`, `kekVersion = "local-v1"`). `KmsKekProvider`
-  exists behind the same interface and is selectable via `KEK_PROVIDER=kms`,
-  but throws a clear "not configured" error — no GCP SDK dependency, no call
-  to `kms.encrypt`/`kms.decrypt` yet. Switching to it once wired is meant to
-  cost exactly the one env var, not a rewrite or a data migration
+  (`apps/api/src/crypto/kms-kek-provider.ts`) exists behind the same
+  interface and is selectable via `KEK_PROVIDER=kms`, but throws a clear
+  "not configured" error — no GCP SDK dependency, no call to
+  `kms.encrypt`/`kms.decrypt` yet. It stays in `apps/api` rather than
+  `@insula/crypto` because it will use the GCP Node SDK, which doesn't run
+  in a Workers isolate. Switching to it once wired is meant to cost exactly
+  the one env var, not a rewrite or a data migration
 - Every provider API key is validated against the provider (cheapest
   available endpoint) before an agent is created or a key is replaced — a
   rejected key writes nothing
