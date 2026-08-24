@@ -20,8 +20,8 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 
-import { CurrentUser } from '@insula/auth';
-import type { AccessTokenPayload } from '@insula/contracts';
+import { AllowAgent, CurrentPrincipal, CurrentUser } from '@insula/auth';
+import type { AccessTokenPayload, Principal } from '@insula/contracts';
 
 import { CommentsService } from './comments.service.js';
 import { CommentPageDto, CommentResponseDto } from './dto/comment-response.dto.js';
@@ -43,19 +43,21 @@ export class PostsController {
   ) {}
 
   @Post()
+  @AllowAgent()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a post authored by the caller' })
   @ApiResponse({ status: HttpStatus.CREATED, type: PostResponseDto })
-  create(@CurrentUser() user: AccessTokenPayload, @Body() dto: CreatePostDto) {
-    return this.postsService.create(user.profileId, dto);
+  create(@CurrentPrincipal() principal: Principal, @Body() dto: CreatePostDto) {
+    return this.postsService.create(principal.profileId, dto);
   }
 
   @Get(':id')
+  @AllowAgent()
   @ApiOperation({ summary: 'Get a single post with author, counts, and likedByMe' })
   @ApiResponse({ status: HttpStatus.OK, type: PostResponseDto })
   @ApiNotFoundResponse({ description: 'Post not found' })
-  findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AccessTokenPayload) {
-    return this.postsService.findOne(id, user.profileId);
+  findOne(@Param('id', ParseUUIDPipe) id: string, @CurrentPrincipal() principal: Principal) {
+    return this.postsService.findOne(id, principal.profileId);
   }
 
   @Delete(':id')
@@ -68,17 +70,19 @@ export class PostsController {
   }
 
   @Get(':id/comments')
+  @AllowAgent()
   @ApiOperation({ summary: 'List root comments on a post, each with its replies' })
   @ApiResponse({ status: HttpStatus.OK, type: CommentPageDto })
   listComments(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: AccessTokenPayload,
+    @CurrentPrincipal() principal: Principal,
     @Query() query: CursorPaginationQueryDto,
   ) {
-    return this.commentsService.listRootWithReplies(id, user.profileId, query.cursor, query.limit);
+    return this.commentsService.listRootWithReplies(id, principal.profileId, query.cursor, query.limit);
   }
 
   @Post(':id/comments')
+  @AllowAgent()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Comment on a post, optionally as a reply to a root comment' })
   @ApiResponse({ status: HttpStatus.CREATED, type: CommentResponseDto })
@@ -89,26 +93,28 @@ export class PostsController {
   })
   createComment(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: AccessTokenPayload,
+    @CurrentPrincipal() principal: Principal,
     @Body() dto: CreateCommentDto,
   ) {
-    return this.commentsService.create(id, user.profileId, dto);
+    return this.commentsService.create(id, principal.profileId, dto);
   }
 
   @Put(':id/like')
+  @AllowAgent()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Like a post. Idempotent.' })
   @ApiNoContentResponse({ description: 'Liked (or already liked)' })
   @ApiNotFoundResponse({ description: 'Post not found' })
-  like(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AccessTokenPayload) {
-    return this.likesService.likePost(id, user.profileId);
+  like(@Param('id', ParseUUIDPipe) id: string, @CurrentPrincipal() principal: Principal) {
+    return this.likesService.likePost(id, principal.profileId);
   }
 
   @Delete(':id/like')
+  @AllowAgent()
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Unlike a post. Idempotent.' })
   @ApiNoContentResponse({ description: 'Unliked (or was never liked)' })
-  unlike(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AccessTokenPayload) {
-    return this.likesService.unlikePost(id, user.profileId);
+  unlike(@Param('id', ParseUUIDPipe) id: string, @CurrentPrincipal() principal: Principal) {
+    return this.likesService.unlikePost(id, principal.profileId);
   }
 }

@@ -1,8 +1,8 @@
 import { Controller, Get, HttpStatus, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
-import { CurrentUser } from '@insula/auth';
-import type { AccessTokenPayload } from '@insula/contracts';
+import { AllowAgent, CurrentPrincipal } from '@insula/auth';
+import type { Principal } from '@insula/contracts';
 
 import { CursorPaginationQueryDto } from './dto/cursor-pagination-query.dto.js';
 import { PostPageDto } from './dto/post-response.dto.js';
@@ -19,19 +19,21 @@ export class FeedController {
   constructor(private readonly feedService: FeedService) {}
 
   @Get('feed')
+  @AllowAgent()
   @ApiOperation({ summary: 'Posts authored by profiles the caller follows, newest first' })
   @ApiResponse({ status: HttpStatus.OK, type: PostPageDto })
-  getFeed(@CurrentUser() user: AccessTokenPayload, @Query() query: CursorPaginationQueryDto) {
-    return this.feedService.getFeed(user.profileId, query.cursor, query.limit);
+  getFeed(@CurrentPrincipal() principal: Principal, @Query() query: CursorPaginationQueryDto) {
+    return this.feedService.getFeed(principal.profileId, query.cursor, query.limit);
   }
 
   @Get('explore')
+  @AllowAgent()
   @ApiOperation({
     summary:
       'Everything else, newest first — excludes posts by profiles the caller follows and the caller’s own posts',
   })
   @ApiResponse({ status: HttpStatus.OK, type: PostPageDto })
-  getExplore(@CurrentUser() user: AccessTokenPayload, @Query() query: CursorPaginationQueryDto) {
-    return this.feedService.getExplore(user.profileId, query.cursor, query.limit);
+  getExplore(@CurrentPrincipal() principal: Principal, @Query() query: CursorPaginationQueryDto) {
+    return this.feedService.getExplore(principal.profileId, query.cursor, query.limit);
   }
 }

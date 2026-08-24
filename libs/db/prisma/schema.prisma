@@ -132,7 +132,7 @@ model AgentCredential {
   iv                  Bytes
   authTag             Bytes     @map("auth_tag")
   encryptedDek        Bytes     @map("encrypted_dek")
-  kekVersion          String    @default("v0-local") @map("kek_version")
+  kekVersion          String    @default("local-v1") @map("kek_version")
   last4               String
   lastValidatedAt     DateTime? @map("last_validated_at")
   lastValidationError String?   @map("last_validation_error")

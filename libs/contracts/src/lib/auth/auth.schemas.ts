@@ -4,7 +4,10 @@ import { RESERVED_HANDLES } from './reserved-handles.js';
 
 const emailField = z.email().trim().toLowerCase();
 
-const handleField = z
+// Exported (not module-local) so agent.schemas.ts can reuse the exact same
+// rules for agent handles — one source of truth for both user and agent
+// registration, per AGENTS.md.
+export const HandleSchema = z
   .string()
   .trim()
   .toLowerCase()
@@ -19,7 +22,7 @@ const handleField = z
 export const RegisterSchema = z.object({
   email: emailField,
   password: z.string().min(8),
-  handle: handleField,
+  handle: HandleSchema,
   displayName: z.string().trim().min(1).max(50),
 });
 export type RegisterInput = z.infer<typeof RegisterSchema>;

@@ -4,31 +4,34 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 
 import type { Request } from 'express';
 
-import type { AccessTokenPayload } from '@insula/contracts';
+import type { AccessTokenPayload, Principal } from '@insula/contracts';
 
-import { IS_PUBLIC_KEY } from '../constants.js';
+import { verifyAgentToken } from '../agent-token.js';
+import { ALLOW_AGENT_KEY, IS_PUBLIC_KEY } from '../constants.js';
 
-// Registered globally via APP_GUARD in apps/api. Verifies the access token
-// only — issuance (signing, refresh rotation, persistence) lives in
-// apps/api/src/auth, never here. libs/auth must stay Prisma-free and
-// apps/*-free so any service can verify a token after the monolith splits.
+// Registered globally via APP_GUARD in apps/api. Verifies tokens only —
+// issuance (signing, refresh rotation, persistence) lives in apps/api/src/auth
+// for user tokens, and in this same lib (agent-token.ts) for agent tokens —
+// libs/auth stays Prisma-free and apps/*-free so any service can verify a
+// token after the monolith splits.
 //
-// Agent service tokens (type: 'agent', short-lived, signed by agent-runtime
-// with AGENT_SERVICE_SECRET — see SECURITY.md) will arrive on these same
-// endpoints once agents can call the API directly. When that lands, this
-// guard gains a second verification path (or a sibling AgentAuthGuard).
-// Not implemented yet — there is nothing to protect with an agent guard
-// until issuance exists.
+// Two token types, two secrets: user tokens verify against JWT_ACCESS_SECRET
+// via the injected JwtService; agent tokens verify against
+// AGENT_SERVICE_SECRET via the stateless verifyAgentToken(). A route must
+// opt in with @AllowAgent() before an agent token is accepted at all — see
+// that decorator for why opt-in, not opt-out, is the safe default here.
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly jwtService: JwtService,
     private readonly reflector: Reflector,
+    private readonly config: ConfigService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -46,22 +49,56 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('Missing access token');
     }
 
+    const userPayload = await this.tryVerifyUserToken(token);
+    if (userPayload) {
+      request.user = userPayload;
+      request.principal = {
+        type: 'user',
+        userId: userPayload.sub,
+        profileId: userPayload.profileId,
+      };
+      return true;
+    }
+
+    const agentPayload = this.tryVerifyAgentToken(token);
+    if (agentPayload) {
+      const allowAgent = this.reflector.getAllAndOverride<boolean>(
+        ALLOW_AGENT_KEY,
+        [context.getHandler(), context.getClass()],
+      );
+      if (!allowAgent) {
+        throw new UnauthorizedException('Agent tokens are not allowed on this route');
+      }
+      // agentPayload is already Principal-shaped (see tryVerifyAgentToken) —
+      // assigned directly, not rebuilt, so there's exactly one place that
+      // maps a decoded AgentTokenPayload's `sub` to `agentId`.
+      request.principal = agentPayload;
+      return true;
+    }
+
+    throw new UnauthorizedException('Invalid or expired access token');
+  }
+
+  private async tryVerifyUserToken(token: string): Promise<AccessTokenPayload | undefined> {
     let payload: AccessTokenPayload;
     try {
       payload = await this.jwtService.verifyAsync<AccessTokenPayload>(token);
     } catch {
-      throw new UnauthorizedException('Invalid or expired access token');
+      return undefined;
     }
-
     // Rejected outright, not inferred from which fields happen to be
-    // present — an agent token will carry different claims later and must
-    // not be accepted here just because the signature checks out.
-    if (payload.type !== 'user') {
-      throw new UnauthorizedException('Invalid token type');
-    }
+    // present — a validly-signed token of the wrong type must not pass just
+    // because the signature checks out.
+    return payload.type === 'user' ? payload : undefined;
+  }
 
-    request.user = payload;
-    return true;
+  private tryVerifyAgentToken(token: string): Principal & { type: 'agent' } | undefined {
+    try {
+      const decoded = verifyAgentToken(token, this.config.getOrThrow<string>('AGENT_SERVICE_SECRET'));
+      return { type: 'agent', agentId: decoded.sub, profileId: decoded.profileId };
+    } catch {
+      return undefined;
+    }
   }
 }
 

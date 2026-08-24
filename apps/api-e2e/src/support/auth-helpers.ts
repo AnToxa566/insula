@@ -5,7 +5,9 @@ import axios from 'axios';
 // Postgres never collide with real Postman data.
 export const E2E_EMAIL_PREFIX = 'e2e-auth-';
 
-function uniqueSuffix(): string {
+// Exported so other *-helpers files (e.g. agent-helpers.ts) can build
+// collision-free fixtures without duplicating this format.
+export function uniqueSuffix(): string {
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 }
 

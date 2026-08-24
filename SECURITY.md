@@ -47,8 +47,19 @@ the agent's own storage.
 
 - Credentials live in a dedicated `agent_credentials` table
 - No credential field exists in any DTO, REST response, or GraphQL type
-- Encryption is plain AES-256-GCM with a key from the environment
-- Encryption is **not yet** KMS envelope encryption
+- Encryption is full envelope encryption: a random per-credential DEK
+  encrypts the key with AES-256-GCM, AAD binds the ciphertext to
+  `(userId, agentId)`, and the DEK is wrapped by a `KekProvider`
+  (`apps/api/src/crypto`) selected by `KEK_PROVIDER`
+- The active KEK provider is **local** (`LocalKekProvider`, AES-256-GCM from
+  `CREDENTIAL_ENCRYPTION_KEY`, `kekVersion = "local-v1"`). `KmsKekProvider`
+  exists behind the same interface and is selectable via `KEK_PROVIDER=kms`,
+  but throws a clear "not configured" error — no GCP SDK dependency, no call
+  to `kms.encrypt`/`kms.decrypt` yet. Switching to it once wired is meant to
+  cost exactly the one env var, not a rewrite or a data migration
+- Every provider API key is validated against the provider (cheapest
+  available endpoint) before an agent is created or a key is replaced — a
+  rejected key writes nothing
 - Log scrubbing is **not yet** in place
 
 This is acceptable for invite-only development with a handful of keys. It is not
@@ -60,30 +71,36 @@ Nothing here is optional. Ordered by ratio of protection to effort.
 
 ### Structural — do first, costs almost nothing
 
-- [ ] Credential table separate from `agents`
-- [ ] No credential field in any API schema
-- [ ] Only metadata is exposed outward: `provider`, `last4`, `addedAt`,
-      `status`, `lastValidatedAt`
+- [x] Credential table separate from `agents`
+- [x] No credential field in any API schema — `AgentCredentialInfo` in
+      `@insula/contracts` carries `provider`, `last4`, `lastValidatedAt`,
+      `lastValidationError` only, and is commented to say so
+- [x] Only metadata is exposed outward: `provider`, `last4`, `lastValidatedAt`,
+      `lastValidationError`
 - [ ] Supabase: credential table is either outside the exposed schema or has an
       RLS policy denying `select` to everyone. PostgREST exposes tables by
       default — this must be verified explicitly, not assumed.
 
 ### Encryption
 
-- [ ] KEK lives in GCP Cloud KMS and never leaves it
-- [ ] Per-credential DEK, random 32 bytes, AES-256-GCM
-- [ ] DEK stored encrypted by the KEK; row holds `ciphertext`, `iv`, `authTag`,
+- [ ] KEK lives in GCP Cloud KMS and never leaves it — **pending**:
+      `KmsKekProvider` exists behind the `KekProvider` interface but is not
+      wired to real KMS yet (see "Current state" above); the active provider
+      is `LocalKekProvider`
+- [x] Per-credential DEK, random 32 bytes, AES-256-GCM
+- [x] DEK stored encrypted by the KEK; row holds `ciphertext`, `iv`, `authTag`,
       `encryptedDek`, `kekVersion`
-- [ ] AAD binds ciphertext to `user_id + agent_id`, so a row cannot be moved
+- [x] AAD binds ciphertext to `user_id + agent_id`, so a row cannot be moved
       between agents
-- [ ] `kekVersion` recorded, so the KEK can be rotated without re-encrypting
+- [x] `kekVersion` recorded, so the KEK can be rotated without re-encrypting
       everything at once
 
 ### Plaintext handling
 
-- [ ] Decrypted key exists only in a local variable for the duration of one call
+- [x] Decrypted key exists only in a local variable for the duration of one call
 - [ ] Never written to Durable Object storage — fetch, decrypt, use, discard on
-      every wake
+      every wake (no Durable Object exists yet — this is the Cloudflare
+      runtime iteration's responsibility to uphold)
 - [ ] Never cached in Redis
 
 ### Logging
@@ -100,7 +117,10 @@ Nothing here is optional. Ordered by ratio of protection to effort.
 - [ ] Key-adding UI has a **mandatory step** instructing the user to create a
       dedicated key and set a spend limit in their provider console, with
       screenshots per provider
-- [ ] Daily token cap per agent, enforced in code
+- [ ] Daily token cap per agent, enforced in code — the mechanism exists
+      (`Agent.dailyTokenLimit`, `TokenUsage`, `TokenBudgetService.assertBudgetAvailable`,
+      `GET /agents/:id/budget`) but nothing calls it per loop iteration yet;
+      that's the agent runtime's job once it exists
 
 ### Access and audit
 
@@ -112,7 +132,7 @@ Nothing here is optional. Ordered by ratio of protection to effort.
 ### Rotation and revocation
 
 - [ ] "Remove key" in the UI actually stops running agents, not just clears a row
-- [ ] Key can be replaced without recreating the agent
+- [x] Key can be replaced without recreating the agent — `PUT /agents/:id/credential`
 - [ ] Incident runbook written **in advance**: we cannot revoke keys at the
       provider, so the plan is — disable all agents, notify users, instruct them
       to revoke in their own console

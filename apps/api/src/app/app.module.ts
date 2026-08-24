@@ -4,6 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 
 import { JwtAuthGuard, JwtVerificationModule } from '@insula/auth';
 
+import { AgentModule } from '../agent/agent.module.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { validateEnv } from '../config/env.validation.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
@@ -16,6 +17,7 @@ import { SocialModule } from '../social/social.module.js';
     PrismaModule,
     AuthModule,
     SocialModule,
+    AgentModule,
   ],
   providers: [
     // Registered globally: opt-out (@Public()) is safer than opt-in — a
