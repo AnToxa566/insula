@@ -2,12 +2,20 @@ import axios from 'axios';
 import { prisma } from '@insula/db';
 
 import { authHeader, registerSocialUser } from '../support/social-helpers';
-import { agentAuthHeader, cleanupAgentTestData, createAgentBody } from '../support/agent-helpers';
+import {
+  agentAuthHeader,
+  cleanupAgentTestData,
+  createAgentBody,
+  setAgentStatus,
+} from '../support/agent-helpers';
 
 const PREFIX = 'e2e-agent-social-';
 
+// Activated after creation: an agent token for a DRAFT agent gets 403 from
+// JwtAuthGuard on every agent-accessible route.
 async function createAgent(ownerAccessToken: string) {
   const res = await axios.post('/api/agents', createAgentBody(), authHeader(ownerAccessToken));
+  await setAgentStatus(res.data.id, ownerAccessToken, 'ACTIVE');
   return res.data as { id: string; profileId: string; handle: string };
 }
 
@@ -24,7 +32,7 @@ describe('agent: acting on the social graph', () => {
     const res = await axios.post(
       '/api/posts',
       { body: 'hello from an agent' },
-      agentAuthHeader(agent.id, agent.profileId),
+      await agentAuthHeader(agent.id),
     );
 
     expect(res.status).toBe(201);
@@ -38,11 +46,11 @@ describe('agent: acting on the social graph', () => {
     const post = await axios.post(
       '/api/posts',
       { body: 'to be protected' },
-      agentAuthHeader(agent.id, agent.profileId),
+      await agentAuthHeader(agent.id),
     );
 
     await expect(
-      axios.delete(`/api/posts/${post.data.id}`, agentAuthHeader(agent.id, agent.profileId)),
+      axios.delete(`/api/posts/${post.data.id}`, await agentAuthHeader(agent.id)),
     ).rejects.toMatchObject({ response: { status: 401 } });
   });
 
@@ -51,7 +59,7 @@ describe('agent: acting on the social graph', () => {
     const agent = await createAgent(owner.data.accessToken);
 
     await expect(
-      axios.post('/api/agents', createAgentBody(), agentAuthHeader(agent.id, agent.profileId)),
+      axios.post('/api/agents', createAgentBody(), await agentAuthHeader(agent.id)),
     ).rejects.toMatchObject({ response: { status: 401 } });
   });
 });

@@ -230,8 +230,9 @@ export class AgentsService {
   // match :id, gets 401, not 403 or 404: this route rejects the caller
   // outright rather than pretending the resource doesn't exist. See
   // SECURITY.md — this is the most sensitive endpoint in the system, which
-  // is also why every call is audit-logged before any check runs, success or
-  // not.
+  // is also why every call that reaches it is audit-logged before any check
+  // here runs. Agent tokens JwtAuthGuard rejects (unknown or non-ACTIVE
+  // agent) are logged there as AGENT_AUTH_REJECTED instead.
   async getRuntime(id: string, principal: Principal, callerIp: string): Promise<AgentRuntimeResponse> {
     this.logger.log(`AGENT_RUNTIME_ACCESS agentId=${id} ip=${callerIp} at=${new Date().toISOString()}`);
 
@@ -246,11 +247,10 @@ export class AgentsService {
     if (!record || !record.credential) {
       throw new NotFoundException('Agent not found');
     }
-    // PAUSED means the owner explicitly stopped this agent — the runner must
-    // not be able to fetch fresh credentials and keep working regardless.
-    if (record.status === 'PAUSED') {
-      throw new ConflictException('Agent is paused');
-    }
+    // No status check here: JwtAuthGuard already rejected a non-ACTIVE agent
+    // with 403 before this ran — the single enforcement point for every
+    // agent-accessible route, so a paused agent can't fetch fresh
+    // credentials here, nor post anywhere else.
 
     const budget = await this.tokenBudget.getBudget(record.id, record.dailyTokenLimit, record.timezone);
     return toAgentRuntimeResponse(record, record.profile, record.credential, budget);

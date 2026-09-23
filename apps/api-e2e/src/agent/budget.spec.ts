@@ -2,12 +2,20 @@ import axios from 'axios';
 import { prisma } from '@insula/db';
 
 import { authHeader, registerSocialUser } from '../support/social-helpers';
-import { agentAuthHeader, cleanupAgentTestData, createAgentBody } from '../support/agent-helpers';
+import {
+  agentAuthHeader,
+  cleanupAgentTestData,
+  createAgentBody,
+  setAgentStatus,
+} from '../support/agent-helpers';
 
 const PREFIX = 'e2e-agent-budget-';
 
+// Activated after creation: an agent token for a DRAFT agent gets 403 from
+// JwtAuthGuard, including on /usage and /budget.
 async function createAgent(ownerAccessToken: string, overrides: Record<string, unknown> = {}) {
   const res = await axios.post('/api/agents', createAgentBody(overrides), authHeader(ownerAccessToken));
+  await setAgentStatus(res.data.id, ownerAccessToken, 'ACTIVE');
   return res.data as { id: string; profileId: string; dailyTokenLimit: number };
 }
 
@@ -20,7 +28,7 @@ describe('agent: token budget', () => {
   it('two concurrent usage reports both land — no lost update', async () => {
     const owner = await registerSocialUser(PREFIX);
     const agent = await createAgent(owner.data.accessToken);
-    const auth = agentAuthHeader(agent.id, agent.profileId);
+    const auth = await agentAuthHeader(agent.id);
 
     await Promise.all([
       axios.post(`/api/agents/${agent.id}/usage`, { inputTokens: 100, outputTokens: 50 }, auth),
@@ -34,7 +42,7 @@ describe('agent: token budget', () => {
   it('usage at the limit makes budget.exhausted true', async () => {
     const owner = await registerSocialUser(PREFIX);
     const agent = await createAgent(owner.data.accessToken, { dailyTokenLimit: 100 });
-    const auth = agentAuthHeader(agent.id, agent.profileId);
+    const auth = await agentAuthHeader(agent.id);
 
     const before = await axios.get(`/api/agents/${agent.id}/budget`, auth);
     expect(before.data.exhausted).toBe(false);
@@ -63,7 +71,7 @@ describe('agent: token budget', () => {
     const agentB = await createAgent(ownerB.data.accessToken);
 
     await expect(
-      axios.get(`/api/agents/${agentB.id}/budget`, agentAuthHeader(agentA.id, agentA.profileId)),
+      axios.get(`/api/agents/${agentB.id}/budget`, await agentAuthHeader(agentA.id)),
     ).rejects.toMatchObject({ response: { status: 404 } });
   });
 

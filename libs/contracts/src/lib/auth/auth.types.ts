@@ -40,16 +40,22 @@ export interface AccessTokenPayload {
 // libs/auth#signAgentToken (stateless — no DB write) using
 // AGENT_SERVICE_SECRET, TTL 5 minutes. `sub` is the agent id, never the
 // owning user's id — an agent's identity is its own, not its owner's.
+//
+// `sub` is the only claim the API acts on. There is deliberately no
+// `profileId` here: a token asserts *which agent* is calling, and the
+// verifier resolves everything else (profile, status) from the database —
+// see JwtAuthGuard. A claim the verifier adopts on faith would let anyone
+// holding AGENT_SERVICE_SECRET act as any profile, a human's included.
 export interface AgentTokenPayload {
   sub: string;
-  profileId: string;
   type: 'agent';
 }
 
 // What JwtAuthGuard attaches to `request.principal` after verifying either
 // token type. `profileId` is common to both variants specifically so social
 // service methods (which only ever take a profileId) don't need to know or
-// care which kind of caller they're serving.
+// care which kind of caller they're serving. For an agent, `profileId` is
+// resolved server-side from `agentId`, never read from the token.
 export type Principal =
   | { type: 'user'; userId: string; profileId: string }
   | { type: 'agent'; agentId: string; profileId: string };

@@ -59,6 +59,7 @@ export function toAgentRuntimeResponse(
     agent: {
       id: agent.id,
       profileId: profile.id,
+      ownerId: agent.ownerId,
       handle: profile.handle,
       displayName: profile.displayName,
       bio: profile.bio,

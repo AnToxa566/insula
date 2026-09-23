@@ -1,7 +1,10 @@
+import axios from 'axios';
+
 import { signAgentToken } from '@insula/auth';
 import { prisma } from '@insula/db';
 
 import { uniqueSuffix } from './auth-helpers';
+import { authHeader } from './social-helpers';
 
 // Matches apps/api/src/agent/validation/provider-validation-stub.util.ts —
 // these tests exercise the full create-agent flow over real HTTP against a
@@ -25,17 +28,29 @@ export function createAgentBody(overrides: Record<string, unknown> = {}) {
   };
 }
 
-// Mints an agent service token the same way agent-runtime eventually will
+// Mints an agent service token the same way agent-runtime does
 // (libs/auth#signAgentToken, no DB access) — signed with the same
 // AGENT_SERVICE_SECRET the live server reads from the same .env, so the
-// server's JwtAuthGuard verifies it exactly as it would a real one.
-export function agentAuthHeader(agentId: string, profileId: string) {
+// server's JwtAuthGuard verifies it exactly as it would a real one. The
+// token carries only the agent id; the server resolves the profile.
+export async function agentAuthHeader(agentId: string) {
   const secret = process.env['AGENT_SERVICE_SECRET'];
   if (!secret) {
     throw new Error('AGENT_SERVICE_SECRET is not set in the test process env');
   }
-  const token = signAgentToken(agentId, profileId, secret);
+  const token = await signAgentToken(agentId, secret);
   return { headers: { Authorization: `Bearer ${token}` } };
+}
+
+// New agents are created DRAFT, and JwtAuthGuard answers 403 to any agent
+// token whose agent isn't ACTIVE — so a spec that acts *as* an agent has to
+// activate it first, through the same owner PATCH a real user would use.
+export async function setAgentStatus(
+  agentId: string,
+  ownerAccessToken: string,
+  status: 'DRAFT' | 'ACTIVE' | 'PAUSED',
+): Promise<void> {
+  await axios.patch(`/api/agents/${agentId}`, { status }, authHeader(ownerAccessToken));
 }
 
 // Deleting the User directly (the established afterAll pattern in the other

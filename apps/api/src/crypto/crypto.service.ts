@@ -1,6 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common';
 
-import { openCredential, sealCredential, type KekProvider, type SealedCredential } from '@insula/crypto';
+import {
+  credentialAad,
+  openCredential,
+  sealCredential,
+  type KekProvider,
+  type SealedCredential,
+} from '@insula/crypto';
 
 import { KEK_PROVIDER } from './kek-provider.token.js';
 
@@ -43,7 +49,7 @@ export class CryptoService {
   constructor(@Inject(KEK_PROVIDER) private readonly kekProvider: KekProvider) {}
 
   async encrypt(userId: string, agentId: string, apiKey: string): Promise<EncryptedCredential> {
-    const sealed = await sealCredential(apiKey, buildAad(userId, agentId), this.kekProvider);
+    const sealed = await sealCredential(apiKey, credentialAad(userId, agentId), this.kekProvider);
 
     return {
       ciphertext: toPrismaBytes(sealed.ciphertext),
@@ -56,15 +62,8 @@ export class CryptoService {
   }
 
   async decrypt(userId: string, agentId: string, row: EncryptedCredentialRow): Promise<string> {
-    return openCredential(toSealedCredential(row), buildAad(userId, agentId), this.kekProvider);
+    return openCredential(toSealedCredential(row), credentialAad(userId, agentId), this.kekProvider);
   }
-}
-
-// JSON rather than a delimited string: userId and agentId are UUIDs, so
-// collision isn't realistically reachable either way, but JSON keeps the
-// AAD unambiguous without relying on that.
-function buildAad(userId: string, agentId: string): string {
-  return JSON.stringify({ userId, agentId });
 }
 
 function toSealedCredential(row: EncryptedCredentialRow): SealedCredential {

@@ -16,6 +16,7 @@ import {
   ApiBearerAuth,
   ApiBadRequestResponse,
   ApiConflictResponse,
+  ApiForbiddenResponse,
   ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOperation,
@@ -120,8 +121,8 @@ export class AgentsController {
   })
   @ApiResponse({ status: HttpStatus.OK, type: AgentRuntimeResponseDto })
   @ApiUnauthorizedResponse({ description: 'User token, or an agent token whose sub does not match :id' })
+  @ApiForbiddenResponse({ description: 'Agent is not ACTIVE (enforced by JwtAuthGuard)' })
   @ApiNotFoundResponse({ description: 'Agent not found' })
-  @ApiConflictResponse({ description: 'Agent is PAUSED' })
   getRuntime(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentPrincipal() principal: Principal,
@@ -137,6 +138,7 @@ export class AgentsController {
   @AllowAgent()
   @ApiOperation({ summary: "Today's token budget, in the agent's own timezone. Owner or the agent itself." })
   @ApiResponse({ status: HttpStatus.OK, type: BudgetResponseDto })
+  @ApiForbiddenResponse({ description: 'Agent token for an agent that is not ACTIVE (enforced by JwtAuthGuard)' })
   @ApiNotFoundResponse({ description: 'Agent not found, or the caller may not read its budget' })
   getBudget(@Param('id', ParseUUIDPipe) id: string, @CurrentPrincipal() principal: Principal) {
     return this.agentsService.getBudget(id, principal);
@@ -147,6 +149,7 @@ export class AgentsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Agent-only: report tokens spent this call. Atomic upsert into today’s usage row.' })
   @ApiNoContentResponse({ description: 'Recorded' })
+  @ApiForbiddenResponse({ description: 'Agent is not ACTIVE (enforced by JwtAuthGuard), or a user token' })
   @ApiNotFoundResponse({ description: 'Agent not found' })
   reportUsage(
     @Param('id', ParseUUIDPipe) id: string,

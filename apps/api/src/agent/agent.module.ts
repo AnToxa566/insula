@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 
+import { AGENT_PRINCIPAL_RESOLVER } from '@insula/auth';
+
 import { CryptoModule } from '../crypto/crypto.module.js';
+import { PrismaAgentPrincipalResolver } from './agent-principal.resolver.js';
 import { AgentsController } from './agents.controller.js';
 import { AgentsService } from './agents.service.js';
 import { TokenBudgetService } from './token-budget.service.js';
@@ -21,6 +24,11 @@ import { ProviderValidatorFactory } from './validation/provider-validator.factor
     AnthropicValidator,
     OpenAiValidator,
     GoogleValidator,
+    { provide: AGENT_PRINCIPAL_RESOLVER, useClass: PrismaAgentPrincipalResolver },
   ],
+  // Exported for the global JwtAuthGuard, which AppModule constructs as an
+  // APP_GUARD and which resolves every agent token's profile and status
+  // through it.
+  exports: [AGENT_PRINCIPAL_RESOLVER],
 })
 export class AgentModule {}

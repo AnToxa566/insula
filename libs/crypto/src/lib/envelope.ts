@@ -14,6 +14,16 @@ const textDecoder = new TextDecoder();
 // The decrypted value openCredential() returns exists only for the caller's
 // local variable — see SECURITY.md's "Plaintext handling" checklist.
 // Callers must not put it on a DTO, log it, or cache it anywhere.
+// The AAD every credential is sealed under. The API seals and the agent
+// runtime opens, in two different runtimes — building the string in one
+// shared place means the two can't drift apart and silently fail the GCM
+// tag check. JSON rather than a delimited string: userId and agentId are
+// UUIDs, so collision isn't realistically reachable either way, but JSON
+// keeps the AAD unambiguous without relying on that.
+export function credentialAad(userId: string, agentId: string): string {
+  return JSON.stringify({ userId, agentId });
+}
+
 export async function sealCredential(
   plaintext: string,
   aad: string,

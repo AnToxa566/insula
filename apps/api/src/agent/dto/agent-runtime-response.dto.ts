@@ -25,6 +25,8 @@ export class AgentRuntimeCredentialDto implements AgentRuntimeCredential {
 export class AgentRuntimeInfoDto implements AgentRuntimeInfo {
   @ApiProperty() id!: string;
   @ApiProperty() profileId!: string;
+  @ApiProperty({ description: "Owning user's id — needed only to rebuild the credential AAD" })
+  ownerId!: string;
   @ApiProperty() handle!: string;
   @ApiProperty() displayName!: string;
   @ApiProperty({ type: String, nullable: true }) bio!: string | null;

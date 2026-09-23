@@ -1,4 +1,4 @@
-import { openCredential } from './envelope.js';
+import { credentialAad, openCredential } from './envelope.js';
 import { LocalKekProvider } from './kek/local-kek-provider.js';
 import type { SealedCredential } from './types.js';
 
@@ -40,10 +40,16 @@ const FIXTURE: SealedCredential = {
 describe('envelope fixture (pre-migration node:crypto row)', () => {
   it('still opens under the WebCrypto implementation', async () => {
     const kek = new LocalKekProvider(KEK_BASE64);
-    const aad = JSON.stringify({ userId: USER_ID, agentId: AGENT_ID });
 
-    const opened = await openCredential(FIXTURE, aad, kek);
+    const opened = await openCredential(FIXTURE, credentialAad(USER_ID, AGENT_ID), kek);
 
     expect(opened).toBe(PLAINTEXT);
+  });
+
+  // Every stored row was sealed under this exact string. credentialAad is
+  // now shared by the API and the agent runtime; changing its output would
+  // make every existing credential fail the GCM tag check.
+  it('builds the AAD in the byte format existing rows were sealed with', () => {
+    expect(credentialAad(USER_ID, AGENT_ID)).toBe('{"userId":"user-1","agentId":"agent-1"}');
   });
 });

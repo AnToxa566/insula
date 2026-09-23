@@ -1,10 +1,13 @@
-import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { ExecutionContext, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Reflector } from '@nestjs/core';
 
+import jwt from 'jsonwebtoken';
+
 import type { AccessTokenPayload, Principal } from '@insula/contracts';
 
+import type { AgentPrincipalResolver, ResolvedAgentPrincipal } from '../agent-principal-resolver.js';
 import { signAgentToken } from '../agent-token.js';
 import { JwtAuthGuard } from './jwt-auth.guard.js';
 
@@ -41,7 +44,19 @@ describe('JwtAuthGuard', () => {
   const reflector = new Reflector();
   const jwtService = new JwtService({ secret: USER_SECRET });
   const config = { getOrThrow: (key: string) => (key === 'AGENT_SERVICE_SECRET' ? AGENT_SECRET : undefined) } as ConfigService;
-  const guard = new JwtAuthGuard(jwtService, reflector, config);
+  // Stands in for apps/api's Prisma-backed resolver. Tests set `agents` to
+  // control what exists; `resolve` is a jest.fn so tests can assert whether
+  // the guard reached the database at all.
+  let agents: Record<string, ResolvedAgentPrincipal> = {};
+  const resolver = {
+    resolve: jest.fn(async (agentId: string) => agents[agentId] ?? null),
+  } satisfies AgentPrincipalResolver;
+  const guard = new JwtAuthGuard(jwtService, reflector, config, resolver);
+
+  beforeEach(() => {
+    agents = { 'agent-1': { profileId: 'profile-1', status: 'ACTIVE' } };
+    resolver.resolve.mockClear();
+  });
 
   afterEach(() => {
     jest.restoreAllMocks();
@@ -104,18 +119,19 @@ describe('JwtAuthGuard', () => {
       return { context, request };
     }
 
-    it('rejects an agent token on a route without @AllowAgent()', async () => {
-      const token = signAgentToken('agent-1', 'profile-1', AGENT_SECRET);
+    it('rejects an agent token on a route without @AllowAgent(), without touching the resolver', async () => {
+      const token = await signAgentToken('agent-1', AGENT_SECRET);
       // getAllAndOverride always returns falsy — same as an undecorated route.
       const { context } = createContext({ authorization: `Bearer ${token}` });
 
       await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
         UnauthorizedException,
       );
+      expect(resolver.resolve).not.toHaveBeenCalled();
     });
 
-    it('accepts an agent token and attaches the agent principal on an @AllowAgent() route', async () => {
-      const token = signAgentToken('agent-1', 'profile-1', AGENT_SECRET);
+    it('accepts an ACTIVE agent and attaches the principal on an @AllowAgent() route', async () => {
+      const token = await signAgentToken('agent-1', AGENT_SECRET);
       const { context, request } = allowAgentContext({ authorization: `Bearer ${token}` });
 
       await expect(guard.canActivate(context)).resolves.toBe(true);
@@ -123,13 +139,46 @@ describe('JwtAuthGuard', () => {
       expect(request.user).toBeUndefined();
     });
 
+    // The escalation this design closes: a token claiming someone else's
+    // profileId (a human's, say) must not become that profile.
+    it('takes profileId from the resolver, never from a token claim', async () => {
+      const token = jwt.sign({ sub: 'agent-1', profileId: 'a-humans-profile', type: 'agent' }, AGENT_SECRET, {
+        algorithm: 'HS256',
+        expiresIn: '5m',
+      });
+      const { context, request } = allowAgentContext({ authorization: `Bearer ${token}` });
+
+      await expect(guard.canActivate(context)).resolves.toBe(true);
+      expect(request.principal).toEqual({ type: 'agent', agentId: 'agent-1', profileId: 'profile-1' });
+    });
+
+    it('rejects a validly signed token for an agent that does not exist with 401', async () => {
+      const token = await signAgentToken('no-such-agent', AGENT_SECRET);
+      const { context, request } = allowAgentContext({ authorization: `Bearer ${token}` });
+
+      await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+      expect(request.principal).toBeUndefined();
+    });
+
+    it.each(['PAUSED', 'DRAFT'] as const)('rejects a %s agent with 403', async (status) => {
+      agents['agent-1'] = { profileId: 'profile-1', status };
+      const token = await signAgentToken('agent-1', AGENT_SECRET);
+      const { context, request } = allowAgentContext({ authorization: `Bearer ${token}` });
+
+      await expect(guard.canActivate(context)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(request.principal).toBeUndefined();
+    });
+
     it('rejects an agent token signed with the wrong secret, even with @AllowAgent()', async () => {
-      const token = signAgentToken('agent-1', 'profile-1', 'not-the-agent-secret');
+      const token = await signAgentToken('agent-1', 'not-the-agent-secret');
       const { context } = allowAgentContext({ authorization: `Bearer ${token}` });
 
       await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
         UnauthorizedException,
       );
+      expect(resolver.resolve).not.toHaveBeenCalled();
     });
   });
 });

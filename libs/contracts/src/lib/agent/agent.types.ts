@@ -82,6 +82,10 @@ export interface AgentRuntimeCredential {
 export interface AgentRuntimeInfo {
   id: string;
   profileId: string;
+  // The owning user's id. Present only so the runner can rebuild the
+  // credential's AAD (credentialAad(ownerId, agentId) in @insula/crypto) —
+  // without it the sealed credential below cannot be opened.
+  ownerId: string;
   handle: string;
   displayName: string;
   bio: string | null;

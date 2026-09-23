@@ -6,4 +6,6 @@ export * from './lib/decorators/current-principal.decorator.js';
 export * from './lib/guards/jwt-auth.guard.js';
 export * from './lib/jwt-verification.module.js';
 export * from './lib/agent-token.js';
+export * from './lib/verify-agent-token.js';
+export * from './lib/agent-principal-resolver.js';
 export type { AccessTokenPayload, AgentTokenPayload, Principal } from '@insula/contracts';

@@ -1,32 +1,39 @@
 import jwt from 'jsonwebtoken';
 
-import { signAgentToken, verifyAgentToken } from './agent-token.js';
+import { AGENT_TOKEN_TTL_SECONDS, signAgentToken } from './agent-token.js';
+import { verifyAgentToken } from './verify-agent-token.js';
 
 const SECRET = 'agent-service-secret';
 
+// signAgentToken is hand-rolled on WebCrypto (it must run in a Workers
+// isolate); verifyAgentToken is jsonwebtoken. These tests are what pins the
+// two to the same HS256 JWT format.
 describe('signAgentToken / verifyAgentToken', () => {
-  it('round-trips a valid token', () => {
-    const token = signAgentToken('agent-1', 'profile-1', SECRET);
-    // toMatchObject, not toEqual: jsonwebtoken adds `iat`/`exp` to the
-    // decoded payload, which is expected and not part of what round-trips.
-    expect(verifyAgentToken(token, SECRET)).toMatchObject({
-      sub: 'agent-1',
-      profileId: 'profile-1',
-      type: 'agent',
-    });
+  it('round-trips a valid token', async () => {
+    const token = await signAgentToken('agent-1', SECRET);
+    expect(verifyAgentToken(token, SECRET)).toEqual({ sub: 'agent-1', type: 'agent' });
+  });
+
+  it('signs HS256 with a 5-minute expiry and no claims beyond sub/type/iat/exp', async () => {
+    const token = await signAgentToken('agent-1', SECRET);
+    const decoded = jwt.decode(token, { complete: true });
+
+    expect(decoded?.header).toEqual({ alg: 'HS256', typ: 'JWT' });
+    const payload = decoded?.payload as Record<string, unknown>;
+    expect(Object.keys(payload).sort()).toEqual(['exp', 'iat', 'sub', 'type']);
+    expect((payload['exp'] as number) - (payload['iat'] as number)).toBe(AGENT_TOKEN_TTL_SECONDS);
   });
 
   it('rejects an expired token', () => {
-    const token = jwt.sign(
-      { sub: 'agent-1', profileId: 'profile-1', type: 'agent' },
-      SECRET,
-      { algorithm: 'HS256', expiresIn: -10 },
-    );
+    const token = jwt.sign({ sub: 'agent-1', type: 'agent' }, SECRET, {
+      algorithm: 'HS256',
+      expiresIn: -10,
+    });
     expect(() => verifyAgentToken(token, SECRET)).toThrow();
   });
 
-  it('rejects a token signed with the wrong secret', () => {
-    const token = signAgentToken('agent-1', 'profile-1', SECRET);
+  it('rejects a token signed with the wrong secret', async () => {
+    const token = await signAgentToken('agent-1', SECRET);
     expect(() => verifyAgentToken(token, 'a-different-secret')).toThrow();
   });
 
@@ -41,5 +48,16 @@ describe('signAgentToken / verifyAgentToken', () => {
       { algorithm: 'HS256', expiresIn: '5m' },
     );
     expect(() => verifyAgentToken(token, SECRET)).toThrow();
+  });
+
+  // Tokens no longer carry a profileId. One that does (an old token, or a
+  // forged claim) must not have it surface to callers — the guard resolves
+  // the profile from `sub` alone.
+  it('drops claims beyond sub/type, such as a stray profileId', () => {
+    const token = jwt.sign({ sub: 'agent-1', profileId: 'someone-elses-profile', type: 'agent' }, SECRET, {
+      algorithm: 'HS256',
+      expiresIn: '5m',
+    });
+    expect(verifyAgentToken(token, SECRET)).toEqual({ sub: 'agent-1', type: 'agent' });
   });
 });

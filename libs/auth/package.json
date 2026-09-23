@@ -11,6 +11,11 @@
       "import": "./src/index.ts",
       "default": "./src/index.ts"
     },
+    "./agent-token": {
+      "types": "./src/lib/agent-token.ts",
+      "import": "./src/lib/agent-token.ts",
+      "default": "./src/lib/agent-token.ts"
+    },
     "./package.json": "./package.json"
   },
   "nx": {
