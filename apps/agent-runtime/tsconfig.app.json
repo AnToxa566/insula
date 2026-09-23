@@ -10,5 +10,16 @@
     "types": []
   },
   "include": ["src/**/*.ts", "env.d.ts"],
-  "exclude": ["out-tsc", "dist", "src/**/*.spec.ts", "src/**/*.test.ts"]
+  "exclude": ["out-tsc", "dist", "src/**/*.spec.ts", "src/**/*.test.ts"],
+  "references": [
+    {
+      "path": "../../libs/crypto/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/contracts/tsconfig.lib.json"
+    },
+    {
+      "path": "../../libs/auth/tsconfig.lib.json"
+    }
+  ]
 }

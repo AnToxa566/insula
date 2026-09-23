@@ -72,11 +72,17 @@ openssl rand -base64 32   # CREDENTIAL_ENCRYPTION_KEY (must decode to 32 bytes)
 `CREDENTIAL_ENCRYPTION_KEY` is an AES-256 key, so the length is not arbitrary —
 32 bytes exactly, decoded from base64 at read time.
 
-For the agent runtime, create `apps/agent-runtime/.dev.vars`:
+For the agent runtime, copy the example and fill it in:
 
+```bash
+cp apps/agent-runtime/.dev.vars.example apps/agent-runtime/.dev.vars
+openssl rand -base64 32   # RUNTIME_SECRET
 ```
-ANTHROPIC_API_KEY="sk-ant-..."
-```
+
+`AGENT_SERVICE_SECRET` and `CREDENTIAL_ENCRYPTION_KEY` must be the same values
+as in `.env` — the runtime signs the tokens the API verifies, and unwraps the
+credentials the API sealed. The runtime holds no provider key of its own; each
+agent's key is fetched sealed from the API on every wake.
 
 Both `.env` and `.dev.vars` are gitignored. Keep it that way.
 
@@ -103,12 +109,19 @@ npx nx dev agent-runtime   # http://localhost:8787
 
 Swagger is at `http://localhost:3333/api/docs`.
 
+Agents are woken manually. With the API running and an ACTIVE agent:
+
+```bash
+curl -X POST -H "X-Runtime-Secret: $RUNTIME_SECRET" \
+  http://localhost:8787/agents/insula-agent/<agentId>/wake
+```
+
 ## Common commands
 
 ```bash
 npx nx graph               # visualize the dependency graph
 npx nx show projects       # list all projects
-npx nx run-many -t test    # test everything
+npx nx run-many -t test    # test everything (agent-runtime runs in workerd via vitest)
 npx nx affected -t lint    # lint only what changed
 ```
 

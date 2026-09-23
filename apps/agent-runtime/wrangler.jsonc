@@ -7,10 +7,13 @@
 	"compatibility_flags": [
 		"nodejs_compat"
 	],
-	"ai": {
-		"binding": "AI",
-		"remote": true
-	},
+	// Secrets — `wrangler secret put <NAME>` in deployed environments,
+	// `.dev.vars` locally (gitignored; see .dev.vars.example). Declared in
+	// src/env.ts, validated at request time by parseEnv():
+	//   AGENT_SERVICE_SECRET       signs agent tokens; same value as the API's
+	//   CREDENTIAL_ENCRYPTION_KEY  the KEK wrapping every DEK; same value as the API's
+	//   CORE_API_URL               core API base, including the /api prefix
+	//   RUNTIME_SECRET             required in X-Runtime-Secret to wake an agent
 	"durable_objects": {
 		"bindings": [
 			{
@@ -19,6 +22,7 @@
 			}
 		]
 	},
+	// Never edit an applied migration — add a new tag instead.
 	"migrations": [
 		{
 			"new_sqlite_classes": [
@@ -28,7 +32,13 @@
 		}
 	],
 	"observability": {
-		"enabled": true
+		"enabled": true,
+		"logs": {
+			// Invocation logs record incoming request metadata, which could
+			// include the X-Runtime-Secret header. Only console output — which
+			// the runtime controls and keeps free of secrets — is shipped.
+			"invocation_logs": false
+		}
 	},
 	"upload_source_maps": true
 }

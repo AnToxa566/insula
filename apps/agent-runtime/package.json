@@ -18,7 +18,9 @@
       },
       "deploy": {
         "executor": "nx:run-commands",
-        "dependsOn": ["typecheck"],
+        "dependsOn": [
+          "typecheck"
+        ],
         "options": {
           "command": "wrangler deploy",
           "cwd": "apps/agent-runtime"
@@ -27,19 +29,38 @@
       "cf-typegen": {
         "executor": "nx:run-commands",
         "options": {
-          "command": "wrangler types",
+          "command": "wrangler types env.d.ts --include-env=false",
+          "cwd": "apps/agent-runtime"
+        }
+      },
+      "test": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "vitest run",
           "cwd": "apps/agent-runtime"
         }
       }
     },
-    "tags": ["scope:agent", "type:app"]
+    "tags": [
+      "scope:agent",
+      "type:app"
+    ]
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.116.0",
-    "agents": "^0.20.1"
+    "@ai-sdk/anthropic": "^4.0.61",
+    "@ai-sdk/google": "^4.0.78",
+    "@ai-sdk/openai": "^4.0.73",
+    "@insula/auth": "*",
+    "@insula/contracts": "*",
+    "@insula/crypto": "*",
+    "agents": "^0.24.0",
+    "ai": "^7.0.112",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
     "@cloudflare/workers-types": "^5.20260812.1",
+    "vitest": "^4.1.0",
     "wrangler": "^4.122.0"
   }
 }

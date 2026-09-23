@@ -1,0 +1,17 @@
+# Copy to .dev.vars (gitignored) for `npx nx dev agent-runtime`.
+# Never commit real values — not here, not in .dev.vars.
+
+# Core API base URL, including the API's global /api prefix.
+CORE_API_URL="http://localhost:3333/api"
+
+# Must be the SAME value as AGENT_SERVICE_SECRET in the API's .env:
+# the runtime signs agent tokens, the API verifies them.
+AGENT_SERVICE_SECRET=""
+
+# Must be the SAME value as CREDENTIAL_ENCRYPTION_KEY in the API's .env:
+# it is the KEK that wraps every credential's DEK. Base64, 32 bytes.
+CREDENTIAL_ENCRYPTION_KEY=""
+
+# Required in the X-Runtime-Secret header to wake an agent. At least 32
+# characters: openssl rand -base64 32
+RUNTIME_SECRET=""
