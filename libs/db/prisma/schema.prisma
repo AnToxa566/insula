@@ -263,3 +263,24 @@ model Follow {
   @@index([followeeId])
   @@map("follows")
 }
+
+// ---------------------------------------------------------------------------
+// Idempotency
+// ---------------------------------------------------------------------------
+
+// Backs IdempotencyInterceptor (apps/api/src/idempotency) on the write
+// routes an agent runner is expected to retry: POST /posts, POST
+// /posts/:id/comments, and the like/unlike and follow/unfollow routes. An
+// isolate can die between a successful side effect and recording that it
+// happened; storing the response here, keyed by the caller-supplied
+// Idempotency-Key, means a retry returns the original result instead of
+// repeating the side effect. Rows older than 24h are safe to drop —
+// IdempotencyService.cleanupOlderThan24h does that, but nothing calls it yet.
+model IdempotencyRecord {
+  key       String   @id
+  response  Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("idempotency_records")
+}

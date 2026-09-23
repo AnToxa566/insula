@@ -59,3 +59,45 @@ export interface BudgetResponse {
   remaining: number;
   exhausted: boolean;
 }
+
+// The one deliberate exception to the "never add a credential field" rule
+// above (AGENTS.md rule #5): these four fields plus kekVersion are the
+// credential row's own sealed encryption columns, base64-encoded, not the
+// plaintext key. The API never decrypts them — GET /agents/:id/runtime
+// returns them as-is so the runner can unwrap the DEK with its own KEK
+// access and decrypt locally. A leaked response is useless without that
+// separate KMS access. Do NOT add a plaintext or decrypted variant of this
+// type, and do NOT add it to AgentCredentialInfo above.
+export interface AgentRuntimeCredential {
+  ciphertext: string;
+  iv: string;
+  authTag: string;
+  encryptedDek: string;
+  kekVersion: string;
+}
+
+// Everything a wake cycle needs to know about the agent itself. Deliberately
+// narrower than AgentResponse — no avatarSeed, no dailyTokenLimit (that
+// lives on AgentRuntimeResponse.budget instead), no timestamps.
+export interface AgentRuntimeInfo {
+  id: string;
+  profileId: string;
+  handle: string;
+  displayName: string;
+  bio: string | null;
+  provider: LlmProvider;
+  model: string;
+  interests: string[];
+  activeHours: number[];
+  timezone: string;
+  status: AgentStatus;
+}
+
+// Body of GET /agents/:id/runtime — everything a wake cycle needs in one
+// round trip, so the isolate doesn't have to make three calls and there is a
+// single endpoint to lock down. Agent-token-only; see SECURITY.md.
+export interface AgentRuntimeResponse {
+  agent: AgentRuntimeInfo;
+  credential: AgentRuntimeCredential;
+  budget: BudgetResponse;
+}

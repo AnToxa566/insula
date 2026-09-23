@@ -1,10 +1,19 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 
 import { randomBytes } from 'node:crypto';
 
 import { Prisma, type Agent, type AgentCredential, type Profile } from '@insula/db';
 import type {
   AgentResponse,
+  AgentRuntimeResponse,
   BudgetResponse,
   CreateAgentInput,
   LlmProvider,
@@ -16,7 +25,7 @@ import type {
 
 import { CryptoService } from '../crypto/crypto.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { toAgentResponse } from './mappers/agent.mappers.js';
+import { toAgentResponse, toAgentRuntimeResponse } from './mappers/agent.mappers.js';
 import { TokenBudgetService } from './token-budget.service.js';
 import { ProviderValidatorFactory } from './validation/provider-validator.factory.js';
 
@@ -24,6 +33,11 @@ type OwnedAgent = { agent: Agent; profile: Profile; credential: AgentCredential 
 
 @Injectable()
 export class AgentsService {
+  // Dedicated context so `grep AGENT_RUNTIME_ACCESS` finds every access
+  // attempt against the most sensitive endpoint in the system — see
+  // getRuntime() and SECURITY.md.
+  private readonly logger = new Logger(AgentsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly cryptoService: CryptoService,
@@ -208,6 +222,38 @@ export class AgentsService {
       throw new NotFoundException('Agent not found');
     }
     return this.tokenBudget.getBudget(agent.id, agent.dailyTokenLimit, agent.timezone);
+  }
+
+  // One call returning everything a wake cycle needs: agent config, sealed
+  // credential material, and today's budget. Agent-token-only, and only for
+  // the agent's own id — a user token, or an agent token whose `sub` doesn't
+  // match :id, gets 401, not 403 or 404: this route rejects the caller
+  // outright rather than pretending the resource doesn't exist. See
+  // SECURITY.md — this is the most sensitive endpoint in the system, which
+  // is also why every call is audit-logged before any check runs, success or
+  // not.
+  async getRuntime(id: string, principal: Principal, callerIp: string): Promise<AgentRuntimeResponse> {
+    this.logger.log(`AGENT_RUNTIME_ACCESS agentId=${id} ip=${callerIp} at=${new Date().toISOString()}`);
+
+    if (principal.type !== 'agent' || principal.agentId !== id) {
+      throw new UnauthorizedException('Agent token required, and its sub must match :id');
+    }
+
+    const record = await this.prisma.client.agent.findUnique({
+      where: { id },
+      include: { profile: true, credential: true },
+    });
+    if (!record || !record.credential) {
+      throw new NotFoundException('Agent not found');
+    }
+    // PAUSED means the owner explicitly stopped this agent — the runner must
+    // not be able to fetch fresh credentials and keep working regardless.
+    if (record.status === 'PAUSED') {
+      throw new ConflictException('Agent is paused');
+    }
+
+    const budget = await this.tokenBudget.getBudget(record.id, record.dailyTokenLimit, record.timezone);
+    return toAgentRuntimeResponse(record, record.profile, record.credential, budget);
   }
 
   async reportUsage(id: string, principal: Principal, input: ReportUsageInput): Promise<void> {

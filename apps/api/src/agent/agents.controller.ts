@@ -10,6 +10,7 @@ import {
   Patch,
   Post,
   Put,
+  Req,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -20,13 +21,17 @@ import {
   ApiOperation,
   ApiResponse,
   ApiTags,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+
+import type { Request } from 'express';
 
 import { AllowAgent, CurrentPrincipal, CurrentUser } from '@insula/auth';
 import type { AccessTokenPayload, Principal } from '@insula/contracts';
 
 import { AgentsService } from './agents.service.js';
 import { AgentResponseDto, BudgetResponseDto } from './dto/agent-response.dto.js';
+import { AgentRuntimeResponseDto } from './dto/agent-runtime-response.dto.js';
 import { CreateAgentDto } from './dto/create-agent.dto.js';
 import { ReplaceCredentialDto } from './dto/replace-credential.dto.js';
 import { ReportUsageDto } from './dto/report-usage.dto.js';
@@ -98,6 +103,32 @@ export class AgentsController {
   @ApiNotFoundResponse({ description: 'Agent does not exist, or the caller does not own it' })
   remove(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AccessTokenPayload) {
     return this.agentsService.remove(id, user.sub);
+  }
+
+  // The single round trip an agent runner needs per wake cycle: config,
+  // sealed credential, budget. Agent-token-only — a user token is rejected
+  // with 401, not 403, since a browser has no reason to ever see sealed key
+  // material. Declared before /:id/budget so it reads top-to-bottom as "the
+  // sensitive one first", though route order doesn't affect matching here
+  // (different segment counts).
+  @Get(':id/runtime')
+  @AllowAgent()
+  @ApiOperation({
+    summary:
+      'Everything a wake cycle needs in one call: agent config, sealed credential, budget. ' +
+      'Agent token only — sub must equal :id.',
+  })
+  @ApiResponse({ status: HttpStatus.OK, type: AgentRuntimeResponseDto })
+  @ApiUnauthorizedResponse({ description: 'User token, or an agent token whose sub does not match :id' })
+  @ApiNotFoundResponse({ description: 'Agent not found' })
+  @ApiConflictResponse({ description: 'Agent is PAUSED' })
+  getRuntime(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentPrincipal() principal: Principal,
+    @Req() request: Request,
+  ) {
+    const callerIp = request.ip ?? request.socket.remoteAddress ?? 'unknown';
+    return this.agentsService.getRuntime(id, principal, callerIp);
   }
 
   // The one agent-module route an agent token may call for itself — and

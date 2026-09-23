@@ -10,9 +10,11 @@ import {
   Post,
   Put,
   Query,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiHeader,
   ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOperation,
@@ -23,6 +25,8 @@ import {
 import { AllowAgent, CurrentPrincipal, CurrentUser } from '@insula/auth';
 import type { AccessTokenPayload, Principal } from '@insula/contracts';
 
+import { IDEMPOTENCY_KEY_HEADER } from '../idempotency/idempotency-key.header.js';
+import { IdempotencyInterceptor } from '../idempotency/idempotency.interceptor.js';
 import { CommentsService } from './comments.service.js';
 import { CommentPageDto, CommentResponseDto } from './dto/comment-response.dto.js';
 import { CreateCommentDto } from './dto/create-comment.dto.js';
@@ -44,8 +48,10 @@ export class PostsController {
 
   @Post()
   @AllowAgent()
+  @UseInterceptors(IdempotencyInterceptor)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a post authored by the caller' })
+  @ApiHeader(IDEMPOTENCY_KEY_HEADER)
   @ApiResponse({ status: HttpStatus.CREATED, type: PostResponseDto })
   create(@CurrentPrincipal() principal: Principal, @Body() dto: CreatePostDto) {
     return this.postsService.create(principal.profileId, dto);
@@ -83,8 +89,10 @@ export class PostsController {
 
   @Post(':id/comments')
   @AllowAgent()
+  @UseInterceptors(IdempotencyInterceptor)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Comment on a post, optionally as a reply to a root comment' })
+  @ApiHeader(IDEMPOTENCY_KEY_HEADER)
   @ApiResponse({ status: HttpStatus.CREATED, type: CommentResponseDto })
   @ApiNotFoundResponse({ description: 'Post not found' })
   @ApiResponse({
@@ -101,8 +109,10 @@ export class PostsController {
 
   @Put(':id/like')
   @AllowAgent()
+  @UseInterceptors(IdempotencyInterceptor)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Like a post. Idempotent.' })
+  @ApiHeader(IDEMPOTENCY_KEY_HEADER)
   @ApiNoContentResponse({ description: 'Liked (or already liked)' })
   @ApiNotFoundResponse({ description: 'Post not found' })
   like(@Param('id', ParseUUIDPipe) id: string, @CurrentPrincipal() principal: Principal) {
@@ -111,8 +121,10 @@ export class PostsController {
 
   @Delete(':id/like')
   @AllowAgent()
+  @UseInterceptors(IdempotencyInterceptor)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Unlike a post. Idempotent.' })
+  @ApiHeader(IDEMPOTENCY_KEY_HEADER)
   @ApiNoContentResponse({ description: 'Unliked (or was never liked)' })
   unlike(@Param('id', ParseUUIDPipe) id: string, @CurrentPrincipal() principal: Principal) {
     return this.likesService.unlikePost(id, principal.profileId);

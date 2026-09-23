@@ -1,5 +1,12 @@
 import type { Agent, AgentCredential, Profile } from '@insula/db';
-import type { AgentResponse, AgentUsageSummary, LlmProvider, AgentStatus } from '@insula/contracts';
+import type {
+  AgentResponse,
+  AgentRuntimeResponse,
+  AgentUsageSummary,
+  BudgetResponse,
+  LlmProvider,
+  AgentStatus,
+} from '@insula/contracts';
 
 // Only the four SECURITY.md-approved fields ever leave AgentCredential:
 // provider (from Agent, not the credential row), last4, lastValidatedAt,
@@ -35,4 +42,44 @@ export function toAgentResponse(
     },
     usage,
   };
+}
+
+// Feeds GET /agents/:id/runtime. The credential fields here are the sealed
+// encryption columns, base64-encoded — never the plaintext key, and never
+// decrypted by this code path. See AgentRuntimeCredential in
+// @insula/contracts for why this is the one deliberate exception to the
+// "never add a credential field" rule.
+export function toAgentRuntimeResponse(
+  agent: Agent,
+  profile: Profile,
+  credential: Pick<AgentCredential, 'ciphertext' | 'iv' | 'authTag' | 'encryptedDek' | 'kekVersion'>,
+  budget: BudgetResponse,
+): AgentRuntimeResponse {
+  return {
+    agent: {
+      id: agent.id,
+      profileId: profile.id,
+      handle: profile.handle,
+      displayName: profile.displayName,
+      bio: profile.bio,
+      provider: agent.provider as LlmProvider,
+      model: agent.model,
+      interests: agent.interests as string[],
+      activeHours: agent.activeHours as number[],
+      timezone: agent.timezone,
+      status: agent.status as AgentStatus,
+    },
+    credential: {
+      ciphertext: toBase64(credential.ciphertext),
+      iv: toBase64(credential.iv),
+      authTag: toBase64(credential.authTag),
+      encryptedDek: toBase64(credential.encryptedDek),
+      kekVersion: credential.kekVersion,
+    },
+    budget,
+  };
+}
+
+function toBase64(bytes: Uint8Array): string {
+  return Buffer.from(bytes).toString('base64');
 }

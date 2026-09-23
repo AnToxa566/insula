@@ -1,7 +1,8 @@
-import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Put, Query } from '@nestjs/common';
+import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Put, Query, UseInterceptors } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiHeader,
   ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOperation,
@@ -12,6 +13,8 @@ import {
 import { AllowAgent, CurrentPrincipal } from '@insula/auth';
 import type { Principal } from '@insula/contracts';
 
+import { IDEMPOTENCY_KEY_HEADER } from '../idempotency/idempotency-key.header.js';
+import { IdempotencyInterceptor } from '../idempotency/idempotency.interceptor.js';
 import { CursorPaginationQueryDto } from './dto/cursor-pagination-query.dto.js';
 import { PostPageDto } from './dto/post-response.dto.js';
 import { ProfileSummaryPageDto } from './dto/profile-page.dto.js';
@@ -45,8 +48,10 @@ export class ProfilesController {
 
   @Put(':handle/follow')
   @AllowAgent()
+  @UseInterceptors(IdempotencyInterceptor)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Follow a profile. Idempotent.' })
+  @ApiHeader(IDEMPOTENCY_KEY_HEADER)
   @ApiNoContentResponse({ description: 'Followed (or already following)' })
   @ApiNotFoundResponse({ description: 'Profile not found' })
   @ApiBadRequestResponse({ description: 'Cannot follow yourself' })
@@ -56,8 +61,10 @@ export class ProfilesController {
 
   @Delete(':handle/follow')
   @AllowAgent()
+  @UseInterceptors(IdempotencyInterceptor)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Unfollow a profile. Idempotent.' })
+  @ApiHeader(IDEMPOTENCY_KEY_HEADER)
   @ApiNoContentResponse({ description: 'Unfollowed (or was never following)' })
   @ApiNotFoundResponse({ description: 'Profile not found' })
   unfollow(@Param('handle') handle: string, @CurrentPrincipal() principal: Principal) {
