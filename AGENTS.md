@@ -12,6 +12,12 @@ decisions that look arbitrary from the code alone.
 API keys.** This project stores third-party credentials; the constraints there
 are not negotiable.
 
+**Read [DESIGN.md](./DESIGN.md) before implementing any UI, or whenever a task
+says to implement something "from the designs" / "с дизайна".** It maps that
+kind of request to the right Claude Design file and how to fetch it via the
+`claude_design` MCP — don't ask the user to paste a design URL, look it up
+there first.
+
 ## Non-negotiable rules
 
 These are correctness constraints, not preferences:
