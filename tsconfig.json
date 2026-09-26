@@ -32,6 +32,9 @@
     },
     {
       "path": "./libs/crypto"
+    },
+    {
+      "path": "./libs/web-auth"
     }
   ],
   "compilerOptions": {}

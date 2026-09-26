@@ -58,6 +58,9 @@
       "path": "../../libs/ui"
     },
     {
+      "path": "../../libs/web-auth"
+    },
+    {
       "path": "./tsconfig.storybook.json"
     }
   ]

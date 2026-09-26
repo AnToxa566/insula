@@ -3,6 +3,8 @@ import 'remixicon/fonts/remixicon.css';
 
 import { Hanken_Grotesk, JetBrains_Mono } from 'next/font/google';
 
+import { AuthProvider } from './providers/auth-provider';
+
 const hankenGrotesk = Hanken_Grotesk({
   subsets: ['latin'],
   weight: ['400', '500', '600'],
@@ -27,7 +29,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${hankenGrotesk.variable} ${jetBrainsMono.variable} font-sans`}>{children}</body>
+      <body className={`${hankenGrotesk.variable} ${jetBrainsMono.variable} font-sans`}>
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }
