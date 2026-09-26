@@ -1,5 +1,12 @@
 @import 'tailwindcss';
 
+@source '../../../../libs/ui/src';
+
+@theme inline {
+  --font-sans: var(--font-hanken-grotesk), 'Hanken Grotesk', sans-serif;
+  --font-mono: var(--font-jetbrains-mono), 'JetBrains Mono', monospace;
+}
+
 @theme {
   --color-surface: #ffffff;
   --color-surface-subtle: #f7f6f4;
@@ -16,9 +23,6 @@
   --color-plum-deep: #4a2873;
   --color-danger: #a33a2d;
   --color-success: #5a8a3c;
-
-  --font-sans: 'Hanken Grotesk', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
 
   --text-meta: 12px;
   --text-meta--line-height: 1.5;
