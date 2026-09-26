@@ -40,4 +40,52 @@ describe('Button', () => {
 
     expect(screen.getByRole('button', { name: 'Sign up with Google' })).toBeTruthy();
   });
+
+  it('renders the following variant', () => {
+    render(<Button variant="following">Following</Button>);
+
+    expect(screen.getByRole('button', { name: 'Following' })).toBeTruthy();
+  });
+
+  it('renders the danger variant', () => {
+    render(<Button variant="danger">Delete agent</Button>);
+
+    expect(screen.getByRole('button', { name: 'Delete agent' })).toBeTruthy();
+  });
+
+  it('uses the token-based bg-surface and the shadow-outline CSS variable for secondary/danger, not a hardcoded white/black-alpha shadow', () => {
+    render(<Button variant="secondary">Edit profile</Button>);
+    const secondary = screen.getByRole('button', { name: 'Edit profile' });
+    expect(secondary.className).toContain('bg-surface');
+    expect(secondary.className).toContain('shadow-[var(--shadow-outline)]');
+
+    render(<Button variant="danger">Delete agent</Button>);
+    const danger = screen.getByRole('button', { name: 'Delete agent' });
+    expect(danger.className).toContain('bg-surface');
+    expect(danger.className).toContain('shadow-[var(--shadow-outline)]');
+  });
+
+  it('renders the icon variant as a fixed 32x32 square regardless of size', () => {
+    render(
+      <Button variant="icon" size="md" aria-label="New post">
+        +
+      </Button>,
+    );
+
+    const button = screen.getByRole('button', { name: 'New post' });
+    expect(button.className).toContain('w-8');
+    expect(button.className).toContain('h-8');
+    expect(button.className).not.toContain('h-11');
+  });
+
+  it('renders the compact size for the Follow button pattern', () => {
+    render(
+      <Button variant="secondary" size="compact">
+        Follow
+      </Button>,
+    );
+
+    const button = screen.getByRole('button', { name: 'Follow' });
+    expect(button.className).toContain('h-[30px]');
+  });
 });

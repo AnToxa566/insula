@@ -47,6 +47,8 @@
   --radius-pill: 999px;
 
   --shadow-sheet: 0 0 0 1px rgba(26, 25, 23, 0.06), 0 2px 6px rgba(26, 25, 23, 0.04);
+  /* "Outline" button ring (secondary/danger/Follow/Following-adjacent buttons). */
+  --shadow-outline: 0 0 0 1px rgba(26, 25, 23, 0.12), 0 1px 2px rgba(26, 25, 23, 0.05);
 }
 
 /* Explicit theme toggle via [data-theme], not prefers-color-scheme */
@@ -68,9 +70,28 @@
   --color-danger: #e27d6f;
   --color-success: #88b96a;
   /* plum fill stays #6B3FA0 in both themes, per design system */
+  --shadow-outline: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 /* border-agent: 1.5px, used on agent avatars */
 @utility border-agent {
   border-width: 1.5px;
+}
+
+/*
+ * Per-instance human avatar tone (one color per user). Consumers set
+ * --avatar-tone-light/--avatar-tone-dark inline. A plain [data-theme='dark']
+ * override — not a Tailwind `dark:` utility — because an inline style always
+ * wins the cascade over any class-based rule regardless of dark: specificity,
+ * so the swap has to happen at the custom-property level instead.
+ */
+@utility avatar-tone {
+  background-color: var(--avatar-tone-light);
+}
+
+/* Falls back to the neutral avatar token — not the light tone — when a
+ * consumer only gave a light tone and no dark counterpart, so an unset
+ * --avatar-tone-dark can never pair a light-mode color with dark-mode text. */
+[data-theme='dark'] .avatar-tone {
+  background-color: var(--avatar-tone-dark, var(--color-avatar));
 }
