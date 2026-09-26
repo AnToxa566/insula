@@ -47,11 +47,18 @@
     ".next",
     "eslint.config.js",
     "eslint.config.cjs",
-    "eslint.config.mjs"
+    "eslint.config.mjs",
+    "**/*.stories.ts",
+    "**/*.stories.js",
+    "**/*.stories.tsx",
+    "**/*.stories.jsx"
   ],
   "references": [
     {
       "path": "../../libs/ui"
+    },
+    {
+      "path": "./tsconfig.storybook.json"
     }
   ]
 }

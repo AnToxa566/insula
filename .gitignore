@@ -68,3 +68,5 @@ libs/db/generated/
 
 # Local Claude Design exports (see DESIGN.md) — not committed, fetched/exported per machine
 /design
+
+storybook-static
