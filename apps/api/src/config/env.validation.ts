@@ -23,6 +23,11 @@ const EnvSchema = z
     AGENT_SERVICE_SECRET: z.string().min(1),
     KEK_PROVIDER: z.enum(['local', 'kms']).default('local'),
     CREDENTIAL_ENCRYPTION_KEY: z.string().min(1).optional(),
+    // The web client's origin, for CORS — a config default like
+    // KEK_PROVIDER, not a secret. apps/web runs on :3000 by default; the
+    // API is on a different port (:3333), so without this every browser
+    // request from the web app fails CORS before it reaches a route.
+    WEB_APP_URL: z.string().min(1).default('http://localhost:3000'),
   })
   .superRefine((env, ctx) => {
     if (env.KEK_PROVIDER === 'local' && !env.CREDENTIAL_ENCRYPTION_KEY) {

@@ -1,10 +1,12 @@
 import {
   LoginSchema,
   LogoutSchema,
+  QuickRegisterSchema,
   RegisterSchema,
   type AuthUser,
   type LoginInput,
   type LoginResponse,
+  type QuickRegisterInput,
   type RegisterInput,
   type RegisterResponse,
 } from '@insula/contracts';
@@ -19,6 +21,14 @@ import { rawRequest } from './raw-request';
 export async function register(input: RegisterInput): Promise<RegisterResponse> {
   const session = await rawRequest<RegisterResponse>('POST', '/auth/register', {
     body: RegisterSchema.parse(input),
+  });
+  setSession(session);
+  return session;
+}
+
+export async function registerQuick(input: QuickRegisterInput): Promise<RegisterResponse> {
+  const session = await rawRequest<RegisterResponse>('POST', '/auth/register/quick', {
+    body: QuickRegisterSchema.parse(input),
   });
   setSession(session);
   return session;

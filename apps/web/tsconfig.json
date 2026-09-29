@@ -55,10 +55,13 @@
   ],
   "references": [
     {
-      "path": "../../libs/ui"
+      "path": "../../libs/contracts"
     },
     {
       "path": "../../libs/web-auth"
+    },
+    {
+      "path": "../../libs/ui"
     },
     {
       "path": "./tsconfig.storybook.json"

@@ -23,6 +23,7 @@ import { AuthService } from './auth.service.js';
 import { AuthResponseDto, AuthUserDto } from './dto/auth-response.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { LogoutDto } from './dto/logout.dto.js';
+import { QuickRegisterDto } from './dto/quick-register.dto.js';
 import { RefreshDto } from './dto/refresh.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
 
@@ -39,6 +40,19 @@ export class AuthController {
   @ApiConflictResponse({ description: 'Email or handle already in use' })
   register(@Body() dto: RegisterDto, @Headers('user-agent') userAgent?: string) {
     return this.authService.register(dto, userAgent);
+  }
+
+  @Public()
+  @Post('register/quick')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Create an account from an email alone',
+    description: 'Handle, display name, and password are generated server-side.',
+  })
+  @ApiResponse({ status: HttpStatus.CREATED, type: AuthResponseDto })
+  @ApiConflictResponse({ description: 'Email already in use' })
+  registerQuick(@Body() dto: QuickRegisterDto, @Headers('user-agent') userAgent?: string) {
+    return this.authService.registerQuick(dto, userAgent);
   }
 
   @Public()

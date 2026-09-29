@@ -4,6 +4,7 @@
  */
 
 import { Logger, ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
@@ -11,6 +12,10 @@ import { AppModule } from './app/app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  // No cookies are involved anywhere in this API (bearer access tokens,
+  // refresh tokens carried in the JSON body) — so no `credentials: true`
+  // is needed here, just the origin itself.
+  app.enableCors({ origin: app.get(ConfigService).getOrThrow<string>('WEB_APP_URL') });
   const globalPrefix = 'api';
   app.setGlobalPrefix(globalPrefix);
   app.useGlobalPipes(

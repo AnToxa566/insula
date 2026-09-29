@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 
 import * as bcrypt from 'bcrypt';
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, randomInt } from 'node:crypto';
 
 import { Prisma, type Profile, type User } from '@insula/db';
 import type {
@@ -12,7 +12,9 @@ import type {
   LoginInput,
   LoginResponse,
   LogoutInput,
+  QuickRegisterInput,
   RefreshInput,
+  RegisterConflictError,
   RegisterInput,
   RegisterResponse,
 } from '@insula/contracts';
@@ -36,6 +38,43 @@ export class AuthService {
   ) {}
 
   async register(input: RegisterInput, userAgent?: string): Promise<RegisterResponse> {
+    return this.createAccount(input, userAgent);
+  }
+
+  // The landing page's one-field signup: only the email is real user input.
+  // Handle, display name, and password are generated server-side — the
+  // handle is retried on a collision (a random suffix makes that rare, but
+  // not impossible), while an email collision is a real conflict and
+  // propagates immediately, same as the normal register flow.
+  async registerQuick(input: QuickRegisterInput, userAgent?: string): Promise<RegisterResponse> {
+    const localPart = input.email.split('@')[0] ?? '';
+    const displayName = localPart || 'New user';
+    const maxAttempts = 5;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        return await this.createAccount(
+          {
+            email: input.email,
+            password: randomBytes(24).toString('base64url'),
+            handle: generateHandleFromLocalPart(localPart),
+            displayName,
+          },
+          userAgent,
+        );
+      } catch (err) {
+        const responseBody = err instanceof ConflictException ? err.getResponse() : undefined;
+        const isHandleConflict = isRegisterConflictError(responseBody) && responseBody.field === 'handle';
+        if (!isHandleConflict || attempt === maxAttempts) {
+          throw err;
+        }
+      }
+    }
+    // Unreachable — the loop always returns or throws — but keeps TS happy.
+    throw new ConflictException('Could not generate a unique handle');
+  }
+
+  private async createAccount(input: RegisterInput, userAgent?: string): Promise<RegisterResponse> {
     const passwordHash = await bcrypt.hash(input.password, BCRYPT_COST);
     const avatarSeed = randomBytes(9).toString('base64url');
 
@@ -66,10 +105,20 @@ export class AuthService {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
         const target = extractUniqueConstraintFields(err.meta);
         if (target.includes('handle')) {
-          throw new ConflictException('Handle already in use');
+          throw new ConflictException({
+            statusCode: 409,
+            error: 'Conflict',
+            field: 'handle',
+            message: 'Handle already in use',
+          } satisfies RegisterConflictError);
         }
         if (target.includes('email')) {
-          throw new ConflictException('Email already in use');
+          throw new ConflictException({
+            statusCode: 409,
+            error: 'Conflict',
+            field: 'email',
+            message: 'Email already in use',
+          } satisfies RegisterConflictError);
         }
         throw new ConflictException('Email or handle already in use');
       }
@@ -208,6 +257,28 @@ export class AuthService {
 
 function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
+}
+
+const HANDLE_MAX_LENGTH = 20;
+const HANDLE_SUFFIX_DIGITS = 4;
+
+// Derives a handle from the local part of an email for the quick-signup
+// flow. Always suffixed with random digits — even a clean, unclaimed local
+// part shouldn't become someone's permanent handle without them choosing
+// it, and the suffix is what keeps "jane" at three different domains from
+// colliding with each other.
+function generateHandleFromLocalPart(localPart: string): string {
+  const suffix = randomInt(0, 10 ** HANDLE_SUFFIX_DIGITS).toString().padStart(HANDLE_SUFFIX_DIGITS, '0');
+  const base =
+    localPart
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, '')
+      .slice(0, HANDLE_MAX_LENGTH - suffix.length - 1) || 'user';
+  return `${base}_${suffix}`.slice(0, HANDLE_MAX_LENGTH);
+}
+
+function isRegisterConflictError(body: unknown): body is RegisterConflictError {
+  return typeof body === 'object' && body !== null && 'field' in body;
 }
 
 // Prisma's P2002 `meta` shape differs by driver: the classic engine reports

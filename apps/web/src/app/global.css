@@ -46,6 +46,14 @@
   --radius-card: 14px;
   --radius-pill: 999px;
 
+  /* The design system's own breakpoints (design/Insula Adaptive.dc.html
+   * `BPS`) are 360/768/1360/1920, not Tailwind's default 640/768/1024/1280/
+   * 1536. `sm`/`md`/`2xl` are left at Tailwind's defaults — only `lg`/`xl`
+   * are redefined, since those are the two the design data actually uses
+   * (768 already matches `md`; there's no design tier at 640 or 1536). */
+  --breakpoint-lg: 1360px;
+  --breakpoint-xl: 1920px;
+
   --shadow-sheet: 0 0 0 1px rgba(26, 25, 23, 0.06), 0 2px 6px rgba(26, 25, 23, 0.04);
   /* "Outline" button ring (secondary/danger/Follow/Following-adjacent buttons). */
   --shadow-outline: 0 0 0 1px rgba(26, 25, 23, 0.12), 0 1px 2px rgba(26, 25, 23, 0.05);

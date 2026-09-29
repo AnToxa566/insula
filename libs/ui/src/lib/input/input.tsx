@@ -1,8 +1,15 @@
 import { useId, type InputHTMLAttributes, type ReactNode } from 'react';
 
+// 'subtle' (default): the gray-filled field used everywhere on a white
+// surface. 'white': a white-filled field with a plum-tinted border, for
+// placing an input directly on a plum-tint background (e.g. the landing
+// hero) — 'subtle's gray reads muddy against plum instead of as a field.
+export type InputVariant = 'subtle' | 'white';
+
 export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'className'> {
   label?: string;
   error?: string;
+  variant?: InputVariant;
   /** Monospace field, for API-key-style values. */
   mono?: boolean;
   /** Right-aligned content inside the field, e.g. a "show" reveal affordance. */
@@ -14,6 +21,7 @@ export function Input({
   id,
   label,
   error,
+  variant = 'subtle',
   mono,
   trailing,
   className,
@@ -32,10 +40,13 @@ export function Input({
   // plum ring win on focus regardless of source order.
   const stateClasses = error
     ? 'border-danger ring-[3px] ring-danger/15 focus:border-danger focus:ring-danger/15'
-    : 'border-[#EAE8E3] focus:border-plum focus:ring-[3px] focus:ring-plum-tint';
+    : variant === 'white'
+      ? 'border-[#E4DCEE] focus:border-plum focus:ring-[3px] focus:ring-plum-tint'
+      : 'border-[#EAE8E3] focus:border-plum focus:ring-[3px] focus:ring-plum-tint';
 
   const fieldClasses = [
-    'h-10 w-full rounded-input border bg-surface-subtle pl-3 text-[15px] text-ink',
+    'h-10 w-full rounded-input border pl-3 text-[15px] text-ink',
+    variant === 'white' ? 'bg-white' : 'bg-surface-subtle',
     // Trailing content is absolutely positioned over the field, so it needs
     // real reserved space — px-3 on both sides would let long values (the
     // API-key case trailing exists for) run underneath it.

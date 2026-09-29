@@ -12,6 +12,14 @@
     "./package.json": "./package.json"
   },
   "nx": {
-    "tags": ["scope:web", "type:ui"]
+    "tags": [
+      "scope:web",
+      "type:ui"
+    ]
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.9.1",
+    "react-hook-form": "^7.89.0",
+    "zod": "^4.4.3"
   }
 }

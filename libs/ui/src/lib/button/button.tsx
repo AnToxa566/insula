@@ -1,18 +1,29 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, ComponentPropsWithoutRef, ElementType, ReactNode } from 'react';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'following' | 'danger' | 'icon';
-export type ButtonSize = 'sm' | 'md' | 'compact';
+export type ButtonSize = 'sm' | 'md' | 'compact' | 'input';
 
-export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonOwnProps<C extends ElementType> {
+  // Renders as a different element/component instead of `<button>` — pass
+  // Next's `Link` for navigation, so it's a real `<a href>` (prefetch,
+  // open-in-new-tab, hover shows the URL, screen readers announce "link")
+  // rather than a button faking one via onClick + router.push.
+  as?: C;
   variant: ButtonVariant;
   size?: ButtonSize;
   children?: ReactNode;
 }
 
+export type ButtonProps<C extends ElementType = 'button'> = ButtonOwnProps<C> &
+  Omit<ComponentPropsWithoutRef<C>, keyof ButtonOwnProps<C>>;
+
 const sizeClasses: Record<ButtonSize, string> = {
   sm: 'h-9 text-sm',
   md: 'h-11 text-[15px]',
   compact: 'h-[30px] text-[13px]',
+  // Matches Input's fixed h-10 — for a button sitting directly beside one
+  // in an inline row, where `md`'s 44px would sit 4px taller.
+  input: 'h-10 text-[15px]',
 };
 
 const variantClasses: Record<ButtonVariant, string> = {
@@ -43,26 +54,28 @@ function paddingClass(variant: ButtonVariant, size: ButtonSize) {
   return size === 'md' ? 'px-5' : 'px-4';
 }
 
-export function Button({
+export function Button<C extends ElementType = 'button'>({
+  as,
   variant,
   size = 'md',
   className,
-  type,
   children,
   ...rest
-}: ButtonProps) {
+}: ButtonProps<C>) {
+  const Component = (as ?? 'button') as ElementType;
+
   // The icon variant is a fixed 32x32 square — it ignores `size` entirely
   // rather than relying on Tailwind class string order to win the cascade.
   const classes = (
     variant === 'icon'
       ? [
-          'inline-flex items-center justify-center transition-colors',
+          'inline-flex items-center justify-center transition-colors cursor-pointer',
           'disabled:opacity-50 disabled:pointer-events-none',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-plum/50',
           variantClasses.icon,
         ]
       : [
-          'inline-flex items-center justify-center whitespace-nowrap transition-colors',
+          'inline-flex items-center justify-center whitespace-nowrap transition-colors cursor-pointer',
           'disabled:opacity-50 disabled:pointer-events-none',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-plum/50',
           sizeClasses[size],
@@ -74,10 +87,19 @@ export function Button({
     .filter(Boolean)
     .join(' ');
 
+  if (Component === 'button') {
+    const { type, ...buttonRest } = rest as ButtonHTMLAttributes<HTMLButtonElement>;
+    return (
+      <button type={type ?? 'button'} className={classes} {...buttonRest}>
+        {children}
+      </button>
+    );
+  }
+
   return (
-    <button type={type ?? 'button'} className={classes} {...rest}>
+    <Component className={classes} {...rest}>
       {children}
-    </button>
+    </Component>
   );
 }
 

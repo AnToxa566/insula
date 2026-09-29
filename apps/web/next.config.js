@@ -26,6 +26,7 @@ const nextConfig = {
       './lib/agent/index.js': `${contracts}/agent/index.ts`,
       './auth.types.js': `${contracts}/auth/auth.types.ts`,
       './auth.schemas.js': `${contracts}/auth/auth.schemas.ts`,
+      './auth-errors.schemas.js': `${contracts}/auth/auth-errors.schemas.ts`,
       './reserved-handles.js': `${contracts}/auth/reserved-handles.ts`,
       './agent.types.js': `${contracts}/agent/agent.types.ts`,
       './agent.schemas.js': `${contracts}/agent/agent.schemas.ts`,

@@ -27,6 +27,13 @@ export const RegisterSchema = z.object({
 });
 export type RegisterInput = z.infer<typeof RegisterSchema>;
 
+// The landing page's one-field "quick" signup: email only. The server
+// derives handle, display name, and password — see auth.service.ts.
+export const QuickRegisterSchema = z.object({
+  email: emailField,
+});
+export type QuickRegisterInput = z.infer<typeof QuickRegisterSchema>;
+
 export const LoginSchema = z.object({
   email: emailField,
   password: z.string().min(1),
