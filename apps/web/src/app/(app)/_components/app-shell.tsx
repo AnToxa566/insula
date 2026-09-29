@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 import { SideNav, TabBar } from '@insula/ui';
-import { useAuthUser } from '@insula/web-auth';
+import { logout, useAuthUser } from '@insula/web-auth';
 
 import { getActiveTab } from '../../../lib/active-tab';
 import { AppRoute, profileHref } from '../../../lib/routes';
@@ -17,6 +17,7 @@ import { AppRoute, profileHref } from '../../../lib/routes';
 // hydration mismatch. The sheet scrolls internally so the navs stay fixed.
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const user = useAuthUser();
 
   // Only the display fields — never email or anything else off the session.
@@ -30,6 +31,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     settings: AppRoute.Settings,
   };
 
+  async function handleLogout() {
+    try {
+      await logout();
+    } catch {
+      // logout() clears the local session even when the revoke call fails,
+      // so the user is signed out either way — the revoke is best-effort.
+    }
+    router.replace(AppRoute.SignIn);
+  }
+
   return (
     <div className="flex h-dvh flex-col bg-surface-canvas">
       <div className="flex min-h-0 flex-1 justify-center lg:py-3 lg:pr-3">
@@ -40,6 +51,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               hrefs={hrefs}
               linkAs={Link}
               user={user ? { name: user.profile.displayName, handle: user.profile.handle } : undefined}
+              onLogout={handleLogout}
             />
           </div>
           <main className="min-w-0 flex-1 overflow-y-auto bg-surface lg:rounded-[14px] lg:shadow-sheet">{children}</main>

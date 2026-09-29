@@ -47,3 +47,8 @@ export const Settings: Story = {
 export const NoActiveItem: Story = {
   args: { active: null },
 };
+
+// Footer becomes the account menu (opens up). Click the user block to open it.
+export const WithAccountMenu: Story = {
+  args: { active: 'feed', onLogout: () => undefined },
+};

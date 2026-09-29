@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import type { ComponentPropsWithoutRef } from 'react';
 
 import { SideNav } from './side-nav';
@@ -64,5 +64,49 @@ describe('SideNav', () => {
     render(<SideNav active="feed" />);
 
     expect(screen.queryByText(/^@/)).toBeNull();
+  });
+
+  describe('account menu', () => {
+    const user = { name: 'Anton Reyes', handle: 'anton' };
+
+    it('has no menu trigger without onLogout', () => {
+      render(<SideNav active="feed" user={user} />);
+
+      expect(screen.queryByRole('button', { name: /account menu/i })).toBeNull();
+    });
+
+    it('has no menu trigger without a user', () => {
+      render(<SideNav active="feed" onLogout={jest.fn()} />);
+
+      expect(screen.queryByRole('button', { name: /account menu/i })).toBeNull();
+    });
+
+    it('shows the name and handle in the trigger', () => {
+      render(<SideNav active="feed" user={user} onLogout={jest.fn()} />);
+
+      const trigger = screen.getByRole('button', { name: /account menu/i });
+      expect(trigger.textContent).toContain('Anton Reyes');
+      expect(trigger.textContent).toContain('@anton');
+    });
+
+    it('reveals "Log out" on click', () => {
+      render(<SideNav active="feed" user={user} onLogout={jest.fn()} />);
+      expect(screen.queryByRole('menuitem', { name: 'Log out' })).toBeNull();
+
+      fireEvent.click(screen.getByRole('button', { name: /account menu/i }));
+
+      expect(screen.getByRole('menuitem', { name: 'Log out' })).toBeTruthy();
+    });
+
+    it('calls onLogout when "Log out" is selected', () => {
+      const onLogout = jest.fn();
+      render(<SideNav active="feed" user={user} onLogout={onLogout} />);
+
+      fireEvent.click(screen.getByRole('button', { name: /account menu/i }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Log out' }));
+
+      expect(onLogout).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole('menu')).toBeNull();
+    });
   });
 });

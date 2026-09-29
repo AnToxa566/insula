@@ -14,9 +14,10 @@ are not negotiable.
 
 **Read [DESIGN.md](./DESIGN.md) before implementing any UI, or whenever a task
 says to implement something "from the designs" / "с дизайна".** It maps that
-kind of request to the right Claude Design file and how to fetch it via the
-`claude_design` MCP — don't ask the user to paste a design URL, look it up
-there first.
+kind of request to the right file in the `design/` folder — look it up there
+per DESIGN.md, don't ask the user to paste a design URL. Icons in the designs
+are inline-SVG placeholders: use the closest Remix Icon instead (see the Icons
+section in DESIGN.md).
 
 ## Non-negotiable rules
 

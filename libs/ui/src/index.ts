@@ -1,5 +1,6 @@
 export * from './lib/avatar/avatar';
 export * from './lib/button/button';
+export * from './lib/dropdown-menu/dropdown-menu';
 export * from './lib/form/field';
 export * from './lib/form/use-guarded-submit';
 export * from './lib/form/use-zod-form';
