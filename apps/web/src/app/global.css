@@ -47,12 +47,16 @@
   --radius-pill: 999px;
 
   /* The design system's own breakpoints (design/Insula Adaptive.dc.html
-   * `BPS`) are 360/768/1360/1920, not Tailwind's default 640/768/1024/1280/
-   * 1536. `sm`/`md`/`2xl` are left at Tailwind's defaults — only `lg`/`xl`
-   * are redefined, since those are the two the design data actually uses
-   * (768 already matches `md`; there's no design tier at 640 or 1536). */
-  --breakpoint-lg: 1360px;
-  --breakpoint-xl: 1920px;
+   * `BPS`) are 360/768/1024/1360/1920. Tailwind's `md` (768) and `lg` (1024)
+   * defaults already match, so only the two upper tiers are redefined:
+   * `xl` = 1360 and `2xl` = 1920 (Tailwind defaults are 1280/1536). There is
+   * no design tier at 640, so `sm` is unused. Below `lg` the authorized shell
+   * swaps the sidebar for the bottom tab bar, and landing/auth go 1-column.
+   * Keep these in `rem`: Tailwind sorts breakpoints by value and can't compare
+   * `px` against the default `rem` ones, so a `px` value is emitted *before*
+   * `lg`/`md` and those then override `xl:*` at wide viewports. */
+  --breakpoint-xl: 85rem; /* 1360px */
+  --breakpoint-2xl: 120rem; /* 1920px */
 
   --shadow-sheet: 0 0 0 1px rgba(26, 25, 23, 0.06), 0 2px 6px rgba(26, 25, 23, 0.04);
   /* "Outline" button ring (secondary/danger/Follow/Following-adjacent buttons). */

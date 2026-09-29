@@ -6,5 +6,6 @@ export * from './lib/form/use-zod-form';
 export * from './lib/input/input';
 export * from './lib/pill/pill';
 export * from './lib/post-row/post-row';
+export * from './lib/side-nav/side-nav';
 export * from './lib/spend-meter/spend-meter';
 export * from './lib/tab-bar/tab-bar';

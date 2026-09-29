@@ -23,7 +23,7 @@ export function SignUpForm() {
     useGuardedSubmit(async (values: RegisterInput) => {
       try {
         await register(values);
-        router.replace(AppRoute.Home);
+        router.replace(AppRoute.Feed);
       } catch (err) {
         if (isApiClientError(err) && err.kind === 'http' && err.status === 409) {
           const parsed = RegisterConflictErrorSchema.safeParse(err.body);

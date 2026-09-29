@@ -1,20 +1,28 @@
 import type { Meta, StoryObj } from '@storybook/nextjs';
 
-import { TabBar } from './tab-bar';
+import { SideNav } from './side-nav';
 
-const meta: Meta<typeof TabBar> = {
-  component: TabBar,
-  title: 'UI/TabBar',
+const meta: Meta<typeof SideNav> = {
+  component: SideNav,
+  title: 'UI/SideNav',
   argTypes: {
     active: {
       control: 'select',
       options: ['feed', 'explore', 'agents', 'profile', 'settings'],
     },
   },
+  args: { user: { name: 'Anton Reyes', handle: 'anton' } },
+  decorators: [
+    (Story) => (
+      <div className="flex h-[700px] bg-surface-canvas">
+        <Story />
+      </div>
+    ),
+  ],
 };
 
 export default meta;
-type Story = StoryObj<typeof TabBar>;
+type Story = StoryObj<typeof SideNav>;
 
 export const Feed: Story = {
   args: { active: 'feed' },
@@ -36,6 +44,6 @@ export const Settings: Story = {
   args: { active: 'settings' },
 };
 
-export const NoActiveTab: Story = {
+export const NoActiveItem: Story = {
   args: { active: null },
 };

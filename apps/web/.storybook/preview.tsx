@@ -1,6 +1,8 @@
 import type { Decorator, Preview } from '@storybook/nextjs';
 import { useEffect } from 'react';
 
+import 'remixicon/fonts/remixicon.css';
+
 import '../src/app/global.css';
 
 // The repo's dark mode is attribute-based ([data-theme='dark'] in global.css),

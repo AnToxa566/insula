@@ -27,7 +27,7 @@ export function QuickRegisterForm() {
     useGuardedSubmit(async (values: QuickRegisterInput) => {
       try {
         await registerQuick(values);
-        router.replace(AppRoute.Home);
+        router.replace(AppRoute.Feed);
       } catch (err) {
         setError('email', {
           type: 'server',

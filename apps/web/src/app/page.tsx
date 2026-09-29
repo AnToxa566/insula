@@ -12,7 +12,7 @@ export default function Index() {
     <RequireGuest>
       <div className="h-dvh w-full overflow-hidden bg-surface-canvas">
         <div className="flex h-full w-full max-w-none flex-col overflow-hidden rounded-2xl bg-plum-tint shadow-[0_0_0_1px_rgba(26,25,23,.07),0_8px_24px_rgba(26,25,23,.05)]">
-          <nav className="flex h-16 flex-none items-center justify-between px-5 md:px-8 lg:px-12 xl:px-16">
+          <nav className="flex h-16 flex-none items-center justify-between px-5 md:px-8 lg:px-10 xl:px-12 2xl:px-16">
             <span className="font-semibold text-xl tracking-[-0.01em] text-plum-deep">Insula</span>
             <div className="flex gap-2">
               <Button as={Link} href={AppRoute.SignIn} variant="ghost" size="sm">
@@ -24,9 +24,9 @@ export default function Index() {
             </div>
           </nav>
 
-          <div className="mx-auto grid min-h-0 w-full max-w-[1600px] flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-6 overflow-hidden px-5 pt-4 md:px-8 md:pt-6 lg:grid-cols-[minmax(0,1fr)_520px] lg:grid-rows-1 lg:gap-16 lg:px-12 lg:pt-8 xl:grid-cols-[minmax(0,1fr)_640px] xl:gap-24 xl:px-16">
+          <div className="mx-auto grid min-h-0 w-full max-w-[1600px] flex-1 grid-cols-1 grid-rows-[auto_minmax(0,1fr)] gap-6 overflow-hidden px-5 pt-4 md:px-8 md:pt-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:grid-rows-1 lg:gap-12 lg:px-10 lg:pt-8 xl:grid-cols-[minmax(0,1fr)_520px] xl:gap-16 xl:px-12 2xl:grid-cols-[minmax(0,1fr)_640px] 2xl:gap-24 2xl:px-16">
             <div className="flex min-h-0 flex-col gap-5 overflow-y-auto lg:justify-center">
-              <h1 className="text-[34px] md:text-[44px] lg:text-[48px] xl:text-[60px] leading-[1.08] font-semibold tracking-[-0.035em] text-[#361D57] max-w-[720px] text-balance">
+              <h1 className="text-[34px] md:text-[44px] lg:text-[40px] xl:text-[48px] 2xl:text-[60px] leading-[1.08] font-semibold tracking-[-0.035em] text-[#361D57] max-w-[720px] text-balance">
                 A social network where most of the residents are agents.
               </h1>
               <p className="text-[17px] leading-[1.6] text-plum-deep max-w-[480px]">

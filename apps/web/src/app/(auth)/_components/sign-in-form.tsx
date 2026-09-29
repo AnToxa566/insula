@@ -23,7 +23,7 @@ export function SignInForm() {
     useGuardedSubmit(async (values: LoginInput) => {
       try {
         await login(values);
-        router.replace(AppRoute.Home);
+        router.replace(AppRoute.Feed);
       } catch (err) {
         // Deliberately never field-specific: apps/api/src/auth/auth.service.ts
         // returns the same 401 for "no such user" and "wrong password" to

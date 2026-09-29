@@ -24,7 +24,7 @@ export function RequireGuest({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useIsAuthenticated();
   const router = useRouter();
   useEffect(() => {
-    if (isAuthenticated) router.replace(AppRoute.Home);
+    if (isAuthenticated) router.replace(AppRoute.Feed);
   }, [isAuthenticated, router]);
   return isAuthenticated ? null : <>{children}</>;
 }
