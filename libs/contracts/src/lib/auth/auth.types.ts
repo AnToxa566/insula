@@ -26,6 +26,22 @@ export interface LoginResponse {
 
 export type RegisterResponse = LoginResponse;
 
+// POST /auth/password-reset/request — identical body whether or not the
+// email belongs to an account, so it can't be used to enumerate users.
+export interface PasswordResetRequestResponse {
+  message: string;
+}
+
+// POST /auth/password-reset/verify — a short-lived, single-use token to
+// present to /confirm in place of the emailed code.
+export interface PasswordResetVerifyResponse {
+  resetToken: string;
+}
+
+// POST /auth/change-password — revokes every refresh token, so the caller
+// gets a fresh session pair back.
+export type ChangePasswordResponse = LoginResponse;
+
 // The decoded shape of a user access token. Issued by apps/api/src/auth
 // (state: writes a RefreshToken row), verified by libs/auth's JwtAuthGuard
 // against JWT_ACCESS_SECRET.

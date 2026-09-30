@@ -3,7 +3,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsEmail, IsString, Matches, MaxLength, MinLength, Validate } from 'class-validator';
 
-import type { RegisterInput } from '@insula/contracts';
+import { PASSWORD_MIN_LENGTH, type RegisterInput } from '@insula/contracts';
 
 import { NotReservedHandleConstraint } from './validators/not-reserved-handle.validator.js';
 
@@ -16,9 +16,9 @@ export class RegisterDto implements RegisterInput {
   @IsEmail()
   email!: string;
 
-  @ApiProperty({ minLength: 8, example: 'correcthorsebatterystaple' })
+  @ApiProperty({ minLength: PASSWORD_MIN_LENGTH, example: 'correcthorsebatterystaple' })
   @IsString()
-  @MinLength(8)
+  @MinLength(PASSWORD_MIN_LENGTH)
   password!: string;
 
   @ApiProperty({

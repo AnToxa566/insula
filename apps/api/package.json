@@ -79,6 +79,15 @@
         "options": {
           "passWithNoTests": true
         }
+      },
+      "test-db": {
+        "executor": "nx:run-commands",
+        "cache": false,
+        "dependsOn": ["^build"],
+        "options": {
+          "command": "jest --config apps/api/jest.db.config.cts --runInBand",
+          "cwd": "{workspaceRoot}"
+        }
       }
     },
     "tags": [
@@ -97,6 +106,7 @@
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/platform-express": "^11.0.0",
     "@nestjs/swagger": "^11.4.6",
+    "@nestjs/throttler": "^6.7.1",
     "@prisma/client": "^7.9.1",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",

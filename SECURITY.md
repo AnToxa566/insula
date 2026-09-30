@@ -80,6 +80,29 @@ tokens.
 - Every provider API key is validated against the provider (cheapest
   available endpoint) before an agent is created or a key is replaced — a
   rejected key writes nothing
+- Password reset (`/auth/password-reset/*`) and change-password
+  (`/auth/change-password`): the 6-digit emailed code is stored only as a
+  bcrypt hash, with a 5-attempt cap (an atomic Postgres increment, so parallel
+  guesses cannot exceed it) and a 10-minute TTL; the single-use reset token it
+  yields is stored only as a SHA-256 hash and lives 15 minutes. A reset or
+  change revokes every refresh token for the account, including one being
+  minted at that instant (login and refresh insert theirs under a `FOR SHARE`
+  lock on the user row; login re-checks the password hash under that lock and
+  refresh re-checks that the token it rotates is still unrevoked, so a token
+  cannot outlive the revoke-all). No code, token, or mail
+  body is ever logged (the console mail transport prints only a template name
+  and a masked recipient), and every failure answers with the same generic
+  message. Only two limits hold across Cloud Run instances, because they live
+  in Postgres: 5 attempts per code and one code per 60s per user. Nothing
+  bounds guessing over a longer horizon across instances: an attacker can make
+  5 guesses a minute on one account (~7,200/day, about a 0.7% chance per day
+  against a 6-digit code). The per-email cap of 5 codes/hour is what bounds it
+  over time, but it is a throttler counter in process memory: per instance, it
+  resets on restart or scale-from-zero, and it multiplies by the instance
+  count (as do the per-IP and per-user counters). Per-IP limits also need the
+  correct `TRUST_PROXY_HOPS` for the real network path, otherwise clients
+  share buckets. **Known follow-up:** access tokens are stateless JWTs, so one
+  issued before a reset or change stays valid for up to 15 minutes afterwards
 - Log scrubbing is **not yet** in place
 
 This is acceptable for invite-only development with a handful of keys. It is not
@@ -163,10 +186,34 @@ Nothing here is optional. Ordered by ratio of protection to effort.
 
 ### Repository hygiene
 
-- [ ] Application secrets in GCP Secret Manager / Cloudflare Secrets, not `.env`
+- [ ] Application secrets (including `BREVO_API_KEY`) in GCP Secret Manager /
+      Cloudflare Secrets, not `.env`
 - [ ] `gitleaks` in pre-commit and in CI
 - [ ] Service JWT switched from a shared HMAC secret to an asymmetric key pair,
       so the API can verify but not issue
+
+### Authentication and abuse limits
+
+- [ ] Per-account reset-code issuance cap enforced across instances (Postgres or
+      shared store) — today only the per-instance in-memory hourly cap bounds
+      code-guessing over time
+- [ ] Revoke user access tokens on password change/reset (today they stay valid
+      up to `JWT_ACCESS_TTL` = 15 min). Intended mechanism: a user-side
+      resolver port in `libs/auth` (analogous to `AgentPrincipalResolver` in
+      `libs/auth/src/lib/agent-principal-resolver.ts`) or a password-version
+      claim, so it keeps working once services are split and each verifies
+      user JWTs
+- [ ] Rate-limit `POST /auth/login`, `/auth/register`, quick-register and
+      `/auth/refresh` (the rate-limit module exists but was deliberately
+      applied only to the four new password endpoints)
+- [ ] Shared or durable throttler storage before scaling out beyond one
+      instance
+- [ ] Set the correct trusted-proxy setting (`TRUST_PROXY_HOPS`) for the real
+      network path. If Cloudflare sits in front of the API (see
+      ARCHITECTURE.md layers), 1 hop would make `req.ip` a Cloudflare address
+      and all clients from one Cloudflare location would share a per-IP
+      bucket — verify on a real deploy (Google LB typically appends more than
+      one `X-Forwarded-For` entry)
 
 ### Legal (before any public launch)
 

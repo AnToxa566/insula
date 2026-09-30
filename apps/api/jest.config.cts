@@ -13,6 +13,9 @@ module.exports = {
   displayName: '@insula/api',
   preset: '../../jest.preset.js',
   testEnvironment: 'node',
+  // `*.db.spec.ts` need the real Postgres; they run via the `test-db` target
+  // (jest.db.config.cts), not in the DB-free unit run.
+  testPathIgnorePatterns: ['/node_modules/', '\\.db\\.spec\\.ts$'],
   transform: {
     '^.+\\.[tj]s$': ['@swc/jest', swcJestConfig],
   },

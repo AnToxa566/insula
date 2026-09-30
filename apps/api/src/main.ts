@@ -6,12 +6,21 @@
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 import { AppModule } from './app/app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // Behind Cloud Run there is one proxy hop, so without this `req.ip` is the
+  // proxy's address and every per-IP rate limit shares a single bucket.
+  // Express's default (trust nothing) is kept when the value is 0, so a
+  // client can never spoof X-Forwarded-For in local dev.
+  const trustProxyHops = app.get(ConfigService).getOrThrow<number>('TRUST_PROXY_HOPS');
+  if (trustProxyHops > 0) {
+    app.set('trust proxy', trustProxyHops);
+  }
   // No cookies are involved anywhere in this API (bearer access tokens,
   // refresh tokens carried in the JSON body) — so no `credentials: true`
   // is needed here, just the origin itself.

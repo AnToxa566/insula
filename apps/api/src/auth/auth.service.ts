@@ -1,14 +1,20 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 
 import * as bcrypt from 'bcrypt';
-import { createHash, randomBytes, randomInt } from 'node:crypto';
+import { randomBytes, randomInt } from 'node:crypto';
 
 import { Prisma, type Profile, type User } from '@insula/db';
 import type {
   AccessTokenPayload,
   AuthUser,
+  ChangePasswordInput,
   LoginInput,
   LoginResponse,
   LogoutInput,
@@ -19,15 +25,13 @@ import type {
   RegisterResponse,
 } from '@insula/contracts';
 
+import { MailService } from '../mail/mail.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { lockUserRowShared } from './utils/lock-user-row.util.js';
 import { parseTtlToMs } from './utils/parse-ttl.util.js';
-
-const BCRYPT_COST = 12;
-
-// Precomputed via bcrypt.hashSync('insula-timing-safe-dummy-password', 12).
-// Used in login when no user is found, so bcrypt.compare always runs against
-// a real hash — the response time doesn't reveal whether the email exists.
-const DUMMY_PASSWORD_HASH = '$2b$12$hjfRqOggiwQ5OIRZxzQCO.KnRiAdaJPvoX1P6niQOVh8f3kChT6jW';
+import { BCRYPT_COST, DUMMY_PASSWORD_HASH } from './utils/password-hashing.js';
+import { revokeAllRefreshTokens } from './utils/revoke-refresh-tokens.util.js';
+import { hashToken } from './utils/token-hash.util.js';
 
 @Injectable()
 export class AuthService {
@@ -35,6 +39,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService,
+    private readonly mail: MailService,
   ) {}
 
   async register(input: RegisterInput, userAgent?: string): Promise<RegisterResponse> {
@@ -78,7 +83,7 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(input.password, BCRYPT_COST);
     const avatarSeed = randomBytes(9).toString('base64url');
 
-    let created: { user: User; profile: Profile };
+    let created: { user: User; profile: Profile; refreshToken: string };
     try {
       created = await this.prisma.client.$transaction(async (tx) => {
         // Profile first: a handle conflict never reaches the user insert,
@@ -99,7 +104,11 @@ export class AuthService {
             profileId: profile.id,
           },
         });
-        return { user, profile };
+        // The session's refresh token commits atomically with the account.
+        // The user row is still invisible to everyone else here, so no
+        // password change can interleave with this insert.
+        const refreshToken = await this.createRefreshToken(tx, user.id, userAgent);
+        return { user, profile, refreshToken };
       });
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
@@ -125,9 +134,14 @@ export class AuthService {
       throw err;
     }
 
-    // Same path login uses — this is what persists the RefreshToken row for
-    // a freshly-registered account, not just a signed access token.
-    return this.issueTokenPair(created.user, created.profile, userAgent);
+    // Signed after commit, so no token leaves this method for a signup that
+    // was rolled back.
+    const accessToken = await this.signAccessToken(created.user, created.profile);
+    return {
+      accessToken,
+      refreshToken: created.refreshToken,
+      user: toAuthUser(created.user, created.profile),
+    };
   }
 
   async login(input: LoginInput, userAgent?: string): Promise<LoginResponse> {
@@ -149,7 +163,21 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
-    return this.issueTokenPair(user, user.profile, userAgent);
+    // bcrypt took a few hundred ms, during which a password reset or change
+    // may have committed (and revoked every token). Insert the token only
+    // under a row lock, and only if the hash we just verified is still the
+    // committed one — otherwise it would outlive the revoke-all. See
+    // lockUserRowShared for why this closes the race.
+    const refreshToken = await this.prisma.client.$transaction(async (tx) => {
+      const locked = await lockUserRowShared(tx, user.id);
+      if (!locked || locked.passwordHash !== user.passwordHash) {
+        throw new UnauthorizedException('Invalid email or password');
+      }
+      return this.createRefreshToken(tx, user.id, userAgent);
+    });
+
+    const accessToken = await this.signAccessToken(user, user.profile);
+    return { accessToken, refreshToken, user: toAuthUser(user, user.profile) };
   }
 
   async refresh(input: RefreshInput): Promise<LoginResponse> {
@@ -181,20 +209,38 @@ export class AuthService {
       Date.now() + parseTtlToMs(this.config.getOrThrow<string>('JWT_REFRESH_TTL')),
     );
 
-    await this.prisma.client.$transaction([
-      this.prisma.client.refreshToken.update({
-        where: { id: existing.id },
+    // Two guards, in this order:
+    //  1. Lock the user row FOR SHARE, as the first statement. A password
+    //     reset/change UPDATEs that row before it revokes all tokens, so it
+    //     conflicts with this lock: either it committed first (and the claim
+    //     below, a fresh READ COMMITTED statement, finds the old token already
+    //     revoked and refuses), or it waits for this transaction and its
+    //     revoke-all then sees the successor row inserted here. Without the
+    //     lock the revoke-all's snapshot could predate that insert and miss it.
+    //  2. Claim the old token with a conditional update (`revokedAt: null`),
+    //     not a blind update of the row read above. Only the request that
+    //     flips it may mint the successor, so two concurrent refreshes of the
+    //     same token can't both succeed.
+    await this.prisma.client.$transaction(async (tx) => {
+      if (!(await lockUserRowShared(tx, user.id))) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+      const claimed = await tx.refreshToken.updateMany({
+        where: { id: existing.id, revokedAt: null },
         data: { revokedAt: new Date() },
-      }),
-      this.prisma.client.refreshToken.create({
+      });
+      if (claimed.count !== 1) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+      await tx.refreshToken.create({
         data: {
           userId: user.id,
           tokenHash: newTokenHash,
           expiresAt,
           userAgent: existing.userAgent,
         },
-      }),
-    ]);
+      });
+    });
 
     const accessToken = await this.signAccessToken(user, user.profile);
     return { accessToken, refreshToken, user: toAuthUser(user, user.profile) };
@@ -223,23 +269,82 @@ export class AuthService {
     return toAuthUser(user, user.profile);
   }
 
-  private async issueTokenPair(
-    user: User,
-    profile: Profile,
+  // Authenticated password change. Identity is the JWT `sub` (resolved by the
+  // guard), never anything in the body. A wrong current password is a 400, not
+  // a 401: the web client treats any 401 as "access token expired" and would
+  // refresh and retry, turning a typo into a pointless loop.
+  //
+  // Every refresh token is revoked — including the caller's own — and a fresh
+  // pair is returned, so the caller keeps a session and every other device is
+  // signed out. Already-issued access tokens stay valid until they expire
+  // (they're stateless).
+  async changePassword(
+    userId: string,
+    input: ChangePasswordInput,
     userAgent?: string,
   ): Promise<LoginResponse> {
+    const user = await this.prisma.client.user.findUnique({
+      where: { id: userId },
+      include: { profile: true },
+    });
+    if (!user) {
+      throw new UnauthorizedException('Invalid session');
+    }
+
+    if (!(await bcrypt.compare(input.currentPassword, user.passwordHash))) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+    // The DTO rejects this first; repeated here so the service is safe on its own.
+    if (input.newPassword === input.currentPassword) {
+      throw new BadRequestException('New password must differ from the current password');
+    }
+
+    // Outside the transaction: a few hundred ms of bcrypt must not hold locks.
+    const passwordHash = await bcrypt.hash(input.newPassword, BCRYPT_COST);
+
+    const refreshToken = await this.prisma.client.$transaction(async (tx) => {
+      // Conditional on the hash we verified against: if another request
+      // changed the password since we read it, the caller's "current password"
+      // is stale and nothing is written. This UPDATE must stay ahead of the
+      // revoke-all: its row lock is what serialises against login/refresh
+      // inserting a token (see lockUserRowShared).
+      const updated = await tx.user.updateMany({
+        where: { id: user.id, passwordHash: user.passwordHash },
+        data: { passwordHash },
+      });
+      if (updated.count !== 1) {
+        throw new ConflictException('Password was changed by another request; try again');
+      }
+      await revokeAllRefreshTokens(tx, user.id, new Date());
+      return this.createRefreshToken(tx, user.id, userAgent);
+    });
+
+    // Signed after commit, so no token leaves this method for a change that
+    // was rolled back.
+    const accessToken = await this.signAccessToken(user, user.profile);
+
+    // Never awaited, never throws (MailService swallows and logs failures).
+    this.mail.sendPasswordChanged(user.email).catch(() => undefined);
+
+    return { accessToken, refreshToken, user: toAuthUser(user, user.profile) };
+  }
+
+  // Persists a new refresh-token row and returns the raw token (only its hash
+  // is stored). Takes the client to write through so a caller that needs the
+  // row to commit atomically with other writes can pass its transaction.
+  private async createRefreshToken(
+    db: Prisma.TransactionClient,
+    userId: string,
+    userAgent?: string,
+  ): Promise<string> {
     const refreshToken = randomBytes(32).toString('base64url');
-    const tokenHash = hashToken(refreshToken);
     const expiresAt = new Date(
       Date.now() + parseTtlToMs(this.config.getOrThrow<string>('JWT_REFRESH_TTL')),
     );
-
-    await this.prisma.client.refreshToken.create({
-      data: { userId: user.id, tokenHash, expiresAt, userAgent },
+    await db.refreshToken.create({
+      data: { userId, tokenHash: hashToken(refreshToken), expiresAt, userAgent },
     });
-
-    const accessToken = await this.signAccessToken(user, profile);
-    return { accessToken, refreshToken, user: toAuthUser(user, profile) };
+    return refreshToken;
   }
 
   private async signAccessToken(user: User, profile: Profile): Promise<string> {
@@ -253,10 +358,6 @@ export class AuthService {
     // — not repeated here.
     return this.jwtService.signAsync(payload);
   }
-}
-
-function hashToken(token: string): string {
-  return createHash('sha256').update(token).digest('hex');
 }
 
 const HANDLE_MAX_LENGTH = 20;

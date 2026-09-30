@@ -58,6 +58,13 @@ module boundaries are honest. Assembling a distributed system before the domain
 is understood puts logic in the wrong services and is expensive to undo. So:
 keep the module boundaries clean, split when there is a reason to.
 
+Infrastructure modules inside `apps/api/src` — `crypto/` (thin Nest wrapper over
+`@insula/crypto`), `idempotency/`, `mail/` and `rate-limit/` — are shared plumbing
+rather than domain modules. `mail/` sends through a `MailTransport` abstraction
+(Brevo in production; the default `console` transport sends nothing) and is meant
+to move to core-api, or to a notification worker once mail volume justifies one.
+`rate-limit/` (in-memory throttler) is meant to live in core-api.
+
 ### Why `libs/contracts` matters most
 
 The same DTOs and event types are used by the web client, every API module, and

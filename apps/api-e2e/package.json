@@ -15,6 +15,7 @@
         ],
         "dependsOn": [
           "@insula/api:build",
+          "@insula/api:test-db",
           "@insula/api:serve"
         ],
         "options": {

@@ -2,7 +2,10 @@ import { z } from 'zod';
 
 import { RESERVED_HANDLES } from './reserved-handles.js';
 
-const emailField = z.email().trim().toLowerCase();
+// Exported so password.schemas.ts normalises addresses identically (trim +
+// lowercase): the address typed in a reset form must resolve to the same
+// account as at sign-in.
+export const emailField = z.email().trim().toLowerCase();
 
 // Exported (not module-local) so agent.schemas.ts can reuse the exact same
 // rules for agent handles — one source of truth for both user and agent
@@ -19,9 +22,15 @@ export const HandleSchema = z
     message: 'This handle is reserved',
   });
 
+// Shared by registration, password reset, and change-password so the policy
+// lives in one place. Min length only for now — no max (bcrypt truncates at
+// 72 bytes; tracked separately).
+export const PASSWORD_MIN_LENGTH = 8;
+export const PasswordSchema = z.string().min(PASSWORD_MIN_LENGTH);
+
 export const RegisterSchema = z.object({
   email: emailField,
-  password: z.string().min(8),
+  password: PasswordSchema,
   handle: HandleSchema,
   displayName: z.string().trim().min(1).max(50),
 });

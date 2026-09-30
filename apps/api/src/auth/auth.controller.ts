@@ -8,19 +8,24 @@ import {
   Post,
 } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
   ApiConflictResponse,
   ApiOperation,
   ApiResponse,
-  ApiUnauthorizedResponse,
   ApiTags,
+  ApiTooManyRequestsResponse,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 
 import { CurrentUser, Public } from '@insula/auth';
-import type { AccessTokenPayload, AuthUser } from '@insula/contracts';
+import type { AccessTokenPayload, AuthUser, ChangePasswordResponse } from '@insula/contracts';
 
+import { RATE_LIMITS } from '../rate-limit/rate-limit.constants.js';
+import { RateLimit } from '../rate-limit/rate-limit.decorator.js';
 import { AuthService } from './auth.service.js';
 import { AuthResponseDto, AuthUserDto } from './dto/auth-response.dto.js';
+import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { LogoutDto } from './dto/logout.dto.js';
 import { QuickRegisterDto } from './dto/quick-register.dto.js';
@@ -82,6 +87,28 @@ export class AuthController {
   @ApiResponse({ status: HttpStatus.NO_CONTENT, description: 'Idempotent — always succeeds' })
   logout(@Body() dto: LogoutDto): Promise<void> {
     return this.authService.logout(dto);
+  }
+
+  @Post('change-password')
+  @RateLimit(RATE_LIMITS.changePassword)
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Change the password of the signed-in user',
+    description:
+      'Revokes every refresh token for the account and returns a fresh access/refresh pair for this session.',
+  })
+  @ApiResponse({ status: HttpStatus.OK, type: AuthResponseDto })
+  @ApiBadRequestResponse({ description: 'Current password is incorrect, or new equals current' })
+  @ApiUnauthorizedResponse({ description: 'Missing, invalid, or expired access token' })
+  @ApiConflictResponse({ description: 'Password was changed concurrently' })
+  @ApiTooManyRequestsResponse({ description: 'Rate limit exceeded' })
+  changePassword(
+    @CurrentUser() user: AccessTokenPayload,
+    @Body() dto: ChangePasswordDto,
+    @Headers('user-agent') userAgent?: string,
+  ): Promise<ChangePasswordResponse> {
+    return this.authService.changePassword(user.sub, dto, userAgent);
   }
 
   @Get('me')

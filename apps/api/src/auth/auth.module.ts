@@ -2,8 +2,12 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 
+import { MailModule } from '../mail/mail.module.js';
+import { RateLimitModule } from '../rate-limit/rate-limit.module.js';
 import { AuthService } from './auth.service.js';
 import { AuthController } from './auth.controller.js';
+import { PasswordResetController } from './password-reset.controller.js';
+import { PasswordResetService } from './password-reset.service.js';
 import { parseTtlToSeconds } from './utils/parse-ttl.util.js';
 
 // Sign-only JwtModule, deliberately separate from libs/auth's verify-only
@@ -12,6 +16,8 @@ import { parseTtlToSeconds } from './utils/parse-ttl.util.js';
 // independently.
 @Module({
   imports: [
+    MailModule,
+    RateLimitModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -23,7 +29,7 @@ import { parseTtlToSeconds } from './utils/parse-ttl.util.js';
       }),
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService],
+  controllers: [AuthController, PasswordResetController],
+  providers: [AuthService, PasswordResetService],
 })
 export class AuthModule {}
